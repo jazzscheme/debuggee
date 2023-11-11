@@ -159,7 +159,7 @@
 ;;;
 
 
-(define-type presence
+(define-type-of-object presence
   unprintable:
   purpose
   uuid
@@ -182,6 +182,7 @@
 (define (new-presence purpose)
   (let ((presence
           (make-presence
+            #f
             purpose
             (make-uuid)
             (get-presence-priority purpose)
@@ -198,8 +199,13 @@
             (lambda (proc connection) (proc connection))
             #f
             (lambda (proc connection) (proc connection)))))
-    (presence-register-set! presence (new-register-proxy presence))
+    (setup-presence presence)
     presence))
+
+
+(define (setup-presence presence)
+  (setup-object presence)
+  (presence-register-set! presence (new-register-local-proxy presence)))
 
 
 (define (presence-print presence output readably)
@@ -305,7 +311,7 @@
         (version (presence-version presence))
         (uuid (presence-uuid presence)))
     (if (not listener)
-        (start-listener presence #f #f #f))
+        (presence-start-listener presence #f #f #f))
     ((presence-connect-handler presence)
       (lambda (presence)
         (let ((port (open-tcp-client (list server-address: host port-number: service))))
@@ -419,7 +425,7 @@
 ;;;
 
 
-(define-type connection
+(define-type-of-object connection
   presence
   port
   thread
@@ -439,23 +445,31 @@
 
 
 (define (new-connection presence port remote-uuid remote-title service address lag invoke-handler process-handler processing-handler execute-handler)
-  (make-connection
-    presence
-    port
-    #f
-    (make-mutex 'write)
-    remote-uuid
-    remote-title
-    service
-    address
-    '()
-    (make-mutex 'invocations)
-    lag
-    #f
-    invoke-handler
-    process-handler
-    processing-handler
-    execute-handler))
+  (let ((connection
+          (make-connection
+            #f
+            presence
+            port
+            #f
+            (make-mutex 'write)
+            remote-uuid
+            remote-title
+            service
+            address
+            '()
+            (make-mutex 'invocations)
+            lag
+            #f
+            invoke-handler
+            process-handler
+            processing-handler
+            execute-handler)))
+    (setup-connection connection)
+    connection))
+
+
+(define (setup-connection connection)
+  (setup-object connection))
 
 
 (define (connection-destroy connection)
@@ -717,7 +731,7 @@
   0.5)
 
 
-(define (proxy-live? remote-proxy)
+(define (remote-proxy-live? remote-proxy)
   #f
   #; ;; testing
   (catch (connection-exception? exc
@@ -790,8 +804,8 @@
 ;;;
 
 
-(define (get-local-register #!optional (purpose #f))
-  (get-register (require-presence purpose)))
+(define (local-register #!optional (purpose #f))
+  (presence-register (require-presence purpose)))
 
 
 (define (new-remote-register purpose uuid)
@@ -819,7 +833,7 @@
 
 (define (register-proxy name proxy-class object #!optional (purpose #f))
   (let ((presence (require-presence purpose)))
-    (let ((register (get-local-register purpose))
+    (let ((register (local-register purpose))
           (proxy (new proxy-class presence object)))
       (register-object register name proxy)
       proxy)))
@@ -939,7 +953,7 @@
       (define (local->proxy stub-interface ior)
         (define (reference->local-proxy stub-interface reference)
           (if (not reference)
-              (get-local-register purpose)
+              (local-register purpose)
             (new (local-class stub-interface) presence (serial->object reference))))
         
         (reference->local-proxy stub-interface (get-reference ior)))

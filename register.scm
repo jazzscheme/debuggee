@@ -35,31 +35,29 @@
 ;;;  See www.jazzscheme.org for details.
 
 
-(define-type-of-local-proxy register-local-proxy)
-
-
-(define (new-register-proxy presence)
-  (make-register-local-proxy
-    presence
-    local-proxy-live?
-    (new-register)))
-
-
-(define-type register
+(define-type-of-object register
   objects)
 
 
 (define (new-register)
-  (make-register
-    (make-table test: eq?)))
+  (let ((register
+          (make-register
+            #f
+            (make-table test: eq?))))
+    (setup-register register)
+    register))
+
+
+(define (setup-register register)
+  (setup-object register))
 
 
 (define (register-find-object register name)
-  (table-ref objects name #f))
+  (table-ref (register-objects register) name #f))
 
 
 (define (register-require-object register name)
-  (or (find-object register name)
+  (or (register-find-object register name)
       (error "Unable to find in register" name)))
 
 
@@ -81,22 +79,22 @@
 
 
 (define (register-register-object register name object #!key (error? #t))
-  (if (find-object register name)
+  (if (register-find-object register name)
       (if error?
           (error "Object is already registered" name)
         #f)
     (begin
-      (table-set! objects name object)
+      (table-set! (register-objects register) name object)
       #t)))
 
 
 (define (register-unregister-object register name #!key (error? #t))
-  (if (not (find-object register name))
+  (if (not (register-find-object register name))
       (if error?
           (error "Object is not registered" name)
         #f)
     (begin
-      (table-clear objects name)
+      (table-clear (register-objects register) name)
       #t)))
 
 
@@ -105,5 +103,5 @@
 ;;;
 
 
-(define (register-get-manifest register)
-  (table-keys objects))
+(define (register-manifest register)
+  (table-keys (register-objects register)))

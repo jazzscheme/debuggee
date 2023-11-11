@@ -56,7 +56,7 @@
               (deserialize stage))))
 
 
-(define-type version
+(define-type-of-object version
   major
   minor
   revision
@@ -65,12 +65,20 @@
 
 
 (define (new-version major minor #!optional (revision 0) (build 0) (stage #f))
-  (make-version
-    major
-    minor
-    revision
-    build
-    stage))
+  (let ((version
+          (make-version
+            #f
+            major
+            minor
+            revision
+            build
+            stage)))
+    (setup-version version)
+    version))
+
+
+(define (setup-version version)
+  (setup-object version))
 
 
 (define (version=? x y)

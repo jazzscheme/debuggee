@@ -35,7 +35,7 @@
 ;;;  See www.jazzscheme.org for details.
 
 
-(define-type ior
+(define-type-of-object ior
   purpose
   uuid
   stub-interface
@@ -44,12 +44,20 @@
   
   
 (define (new-ior purpose uuid stub-interface reference values)
-  (make-ior
-    purpose
-    uuid
-    stub-interface
-    reference
-    values))
+  (let ((ior
+          (make-ior
+            #f
+            purpose
+            uuid
+            stub-interface
+            reference
+            values)))
+    (setup-ior ior)
+    ior))
+
+
+(define (setup-ior ior)
+  (setup-object ior))
 
 
 (define (ior-print ior output readably)

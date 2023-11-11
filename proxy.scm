@@ -35,15 +35,18 @@
 ;;;  See www.jazzscheme.org for details.
 
 
-(define-type proxy
+(define-type-of-object proxy
   extender: define-type-of-proxy
   unprintable:
-  presence
-  method-live?)
+  presence)
+
+
+(define (setup-proxy proxy)
+  (setup-object proxy))
 
 
 (define (proxy-live? proxy)
-  ((proxy-method-live? proxy) proxy))
+  ((dispatch proxy 'live?) proxy))
 
 
 ;;;
@@ -67,10 +70,18 @@
 
 
 (define (new-local-proxy presence object)
-  (make-local-proxy
-    presence
-    local-proxy-live?
-    object))
+  (let ((local-proxy
+          (make-local-proxy
+            #f
+            presence
+            object)))
+    (setup-local-proxy local-proxy)
+    local-proxy))
+
+
+(define (setup-local-proxy local-proxy)
+  (setup-proxy local-proxy)
+  (add-method local-proxy 'live? local-proxy-live?))
 
 
 (define (local-proxy-print local-proxy output readably)
@@ -105,16 +116,25 @@
 
 
 (define-type-of-proxy remote-proxy
+  extender: define-type-of-remote-proxy
   ior
   values)
 
 
 (define (new-remote-proxy presence ior values)
-  (make-remote-proxy
-    presence
-    remote-proxy-live?
-    ior
-    values))
+  (let ((remote-proxy
+          (make-remote-proxy
+            #f
+            presence
+            ior
+            values)))
+    (setup-remote-proxy remote-proxy)
+    remote-proxy))
+
+
+(define (setup-remote-proxy remote-proxy)
+  (setup-proxy remote-proxy)
+  (add-method remote-proxy 'live? remote-proxy-live?))
 
 
 (define (remote-proxy-print remote-proxy output readably)

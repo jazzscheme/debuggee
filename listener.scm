@@ -35,7 +35,7 @@
 ;;;  See www.jazzscheme.org for details.
 
 
-(define-type listener
+(define-type-of-object listener
   presence
   host
   service
@@ -45,13 +45,21 @@
 
 
 (define (new-listener presence #!key (host #f) (service #f) (alternate-service #f))
-  (make-listener
-    presence
-    host
-    service
-    alternate-service
-    #f
-    #f))
+  (let ((listener
+          (make-listener
+            #f
+            presence
+            host
+            service
+            alternate-service
+            #f
+            #f)))
+    (setup-listener listener)
+    listener))
+
+
+(define (setup-listener listener)
+  (setup-object listener))
 
 
 ;;;
