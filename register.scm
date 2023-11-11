@@ -42,6 +42,7 @@
 (define (new-register)
   (let ((register
           (make-register
+            'register
             #f
             (make-table test: eq?))))
     (setup-register register)

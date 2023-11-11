@@ -47,6 +47,7 @@
 (define (new-listener presence #!key (host #f) (service #f) (alternate-service #f))
   (let ((listener
           (make-listener
+            'listener
             #f
             presence
             host

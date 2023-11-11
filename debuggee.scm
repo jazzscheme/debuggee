@@ -2,7 +2,7 @@
 ;;;  JazzScheme
 ;;;==============
 ;;;
-;;;; Math
+;;;; Debuggee
 ;;;
 ;;;  The contents of this file are subject to the Mozilla Public License Version
 ;;;  1.1 (the "License"); you may not use this file except in compliance with
@@ -35,9 +35,42 @@
 ;;;  See www.jazzscheme.org for details.
 
 
-(define random-integer-65536
-  (let* ((rs (make-random-source))
-         (ri (random-source-make-integers rs)))
-    (random-source-randomize! rs)
-    (lambda ()
-      (ri 65536))))
+;;;
+;;;; Debuggee-Process
+;;;
+
+
+(define-type-of-object debuggee-process)
+
+
+(define (new-debuggee-process)
+  (let ((debuggee-process
+          (make-debuggee-process
+            'debuggee-process
+            #f)))
+    (setup-debuggee-process debuggee-process)
+    debuggee-process))
+
+
+(define (setup-debuggee-process debuggee-process)
+  (setup-object debuggee-process))
+
+
+;;;
+;;;; Local
+;;;
+
+
+(define local-process
+  #f)
+
+
+(define (get-local-process)
+  local-process)
+
+
+(define (setup-local-process)
+  (if (not local-process)
+      (begin
+        (set! local-process (new-debuggee-process-local-proxy (require-presence 'debugging) (new-debuggee-process)))
+        (register-proxy-register-object (local-register 'debugging) 'debuggee local-process))))

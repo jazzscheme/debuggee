@@ -2,7 +2,7 @@
 ;;;  JazzScheme
 ;;;==============
 ;;;
-;;;; Math
+;;;; Objects
 ;;;
 ;;;  The contents of this file are subject to the Mozilla Public License Version
 ;;;  1.1 (the "License"); you may not use this file except in compliance with
@@ -35,9 +35,23 @@
 ;;;  See www.jazzscheme.org for details.
 
 
-(define random-integer-65536
-  (let* ((rs (make-random-source))
-         (ri (random-source-make-integers rs)))
-    (random-source-randomize! rs)
-    (lambda ()
-      (ri 65536))))
+(define-type object
+  id: 07E95BD3-703D-4F6C-99D9-70EFF3A8CD16
+  extender: define-type-of-object
+  class
+  methods)
+
+
+(define (setup-object object)
+  (object-methods-set! object (make-table)))
+
+
+(define (add-method object method-name method)
+  (table-set! (object-methods object) method-name method))
+
+
+(define (dispatch object method-name)
+  (let ((method (table-ref (object-methods object) method-name #f)))
+    (if (not method)
+        (error "Unable to find method" method-name)
+      method)))

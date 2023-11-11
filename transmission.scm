@@ -48,6 +48,11 @@
   (list Connection-Broke reason))
 
 
+(define (connection-broke-exception? exc)
+  (and (pair? exc)
+       (eq? (car exc) Connection-Broke)))
+
+
 (define (throw-connection-broke reason)
   (raise (new-connection-broke reason)))
 
@@ -93,8 +98,7 @@
 
 (define (connection-exception? exc)
   (or (os-exception? exc)
-      (and (object? exc)
-           (is? exc Connection-Broke))))
+      (connection-broke-exception? exc)))
 
 
 ;;;

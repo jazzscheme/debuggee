@@ -35,6 +35,23 @@
 ;;;  See www.jazzscheme.org for details.
 
 
+(define (marshall-ior ior)
+  (serialize-object 'ior
+                    (vector (ior-purpose ior)
+                            (ior-uuid ior)
+                            (ior-stub-interface ior)
+                            (ior-reference ior)
+                            (ior-values ior))))
+
+
+(define (unmarshall-ior content)
+  (new-ior (vector-ref content 0)
+           (vector-ref content 1)
+           (vector-ref content 2)
+           (vector-ref content 3)
+           (vector-ref content 4)))
+
+
 (define-type-of-object ior
   purpose
   uuid
@@ -46,6 +63,7 @@
 (define (new-ior purpose uuid stub-interface reference values)
   (let ((ior
           (make-ior
+            'ior
             #f
             purpose
             uuid
@@ -62,7 +80,7 @@
 
 (define (ior-print ior output readably)
   (format output "~{{a} {s} {s} {s} {s} {s}}"
-    (category-name (class-of ior))
+    (object-class ior)
     purpose
     uuid
     stub-interface

@@ -45,6 +45,10 @@
   (setup-object proxy))
 
 
+(define (proxy-stub proxy)
+  ((dispatch proxy 'stub) proxy))
+
+
 (define (proxy-live? proxy)
   ((dispatch proxy 'live?) proxy))
 
@@ -72,6 +76,7 @@
 (define (new-local-proxy presence object)
   (let ((local-proxy
           (make-local-proxy
+            'local-proxy
             #f
             presence
             object)))
@@ -88,7 +93,7 @@
   (print-unreadable local-proxy output
     (lambda (output)
       (format output "{?{a} ~}{s}"
-        (get-purpose presence)
+        (presence-purpose presence)
         object))))
 
 
@@ -124,6 +129,7 @@
 (define (new-remote-proxy presence ior values)
   (let ((remote-proxy
           (make-remote-proxy
+            'remote-proxy
             #f
             presence
             ior
@@ -141,8 +147,8 @@
   (print-unreadable remote-proxy output
     (lambda (output)
       (format output "{?{a} ~}{s}"
-        (get-purpose presence)
-        (get-uuid ior)))))
+        (presence-purpose presence)
+        (ior-uuid ior)))))
 
 
 ;; meant to be used by the remoting system only

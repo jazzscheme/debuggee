@@ -2,7 +2,7 @@
 ;;;  JazzScheme
 ;;;==============
 ;;;
-;;;; Math
+;;;; Debugger
 ;;;
 ;;;  The contents of this file are subject to the Mozilla Public License Version
 ;;;  1.1 (the "License"); you may not use this file except in compliance with
@@ -33,11 +33,3 @@
 ;;;  of this file under the terms of any one of the MPL or the GPL.
 ;;;
 ;;;  See www.jazzscheme.org for details.
-
-
-(define random-integer-65536
-  (let* ((rs (make-random-source))
-         (ri (random-source-make-integers rs)))
-    (random-source-randomize! rs)
-    (lambda ()
-      (ri 65536))))

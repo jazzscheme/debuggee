@@ -182,6 +182,7 @@
 (define (new-presence purpose)
   (let ((presence
           (make-presence
+            'presence
             #f
             purpose
             (make-uuid)
@@ -268,24 +269,22 @@
                     (local-title presence-title)
                     (local-service (listener-listening-port (presence-listener presence)))
                     (local-address (socket-info-address (tcp-client-peer-socket-info port)))
-                    (start (current-monotonic))
                     (reference-proxy (and reference (load-reference (presence-register presence) reference))))
                 (write-port port code version (list local-uuid local-title local-service local-address reference-proxy))
                 (if (not (eq? (read-port port code version) 'handshake))
                     (error "Fatal")
-                  (let ((lag (- (current-monotonic) start)))
-                    (let ((invoke-handler (presence-invoke-handler presence))
-                          (process-handler (presence-process-handler presence))
-                          (processing-handler (presence-processing-handler presence))
-                          (execute-handler (presence-execute-handler presence)))
-                      (let ((connection (new-connection presence port remote-uuid remote-title remote-service remote-address lag invoke-handler process-handler processing-handler execute-handler)))
-                        (if (and debug-remote? (debug-presence? presence))
-                            (begin
-                              (callee-garble-hack)
-                              (debug-remote presence '<<< remote-title remote-uuid 'accept connection)))
-                        (presence-register-connection presence remote-uuid connection)
-                        (connection-thread-set! connection (current-thread))
-                        (connection-process connection)))))))
+                  (let ((invoke-handler (presence-invoke-handler presence))
+                        (process-handler (presence-process-handler presence))
+                        (processing-handler (presence-processing-handler presence))
+                        (execute-handler (presence-execute-handler presence)))
+                    (let ((connection (new-connection presence port remote-uuid remote-title remote-service remote-address #f invoke-handler process-handler processing-handler execute-handler)))
+                      (if (and debug-remote? (debug-presence? presence))
+                          (begin
+                            (callee-garble-hack)
+                            (debug-remote presence '<<< remote-title remote-uuid 'accept connection)))
+                      (presence-register-connection presence remote-uuid connection)
+                      (connection-thread-set! connection (current-thread))
+                      (connection-process connection))))))
             
             (let ((existing-connection (presence-find-connection presence remote-uuid)))
               (if existing-connection
@@ -318,8 +317,7 @@
           (let ((local-uuid uuid)
                 (local-title presence-title)
                 (local-service (listener-listening-port listener))
-                (local-address (socket-info-address (tcp-client-peer-socket-info port)))
-                (start (current-monotonic)))
+                (local-address (socket-info-address (tcp-client-peer-socket-info port))))
             (write-port port code version (list 'connect local-uuid local-title local-service local-address reference))
             (let ((reply (read-port port code version)))
               (cond ((eof-object? reply)
@@ -328,27 +326,26 @@
                      (error "Already connected to" host service))
                     (else
                      (bind (remote-uuid remote-title remote-service remote-address reference-proxy) reply
-                       (let ((lag (- (current-monotonic) start)))
-                         (write-port port code version 'handshake)
-                         (let ((invoke-handler (presence-invoke-handler presence))
-                               (process-handler (presence-process-handler presence))
-                               (processing-handler (presence-processing-handler presence))
-                               (execute-handler (presence-execute-handler presence)))
-                           (let ((connection (new-connection presence port remote-uuid remote-title remote-service remote-address lag invoke-handler process-handler processing-handler execute-handler)))
-                             (if (and debug-remote? (debug-presence? presence))
-                                 (begin
-                                   (callee-garble-hack)
-                                   (callee-garble-hack)
-                                   (debug-remote presence '<<< remote-title remote-uuid 'connect connection)))
-                             (presence-register-connection presence remote-uuid connection)
-                             (let ((thread (make-thread
-                                             (lambda ()
-                                               (connection-process connection))
-                                             'presence-connected)))
-                               (connection-thread-set! connection thread)
-                               (thread-base-priority-set! thread (presence-priority presence))
-                               (thread-start! thread)
-                               (or reference-proxy remote-uuid))))))))))))
+                       (write-port port code version 'handshake)
+                       (let ((invoke-handler (presence-invoke-handler presence))
+                             (process-handler (presence-process-handler presence))
+                             (processing-handler (presence-processing-handler presence))
+                             (execute-handler (presence-execute-handler presence)))
+                         (let ((connection (new-connection presence port remote-uuid remote-title remote-service remote-address #f invoke-handler process-handler processing-handler execute-handler)))
+                           (if (and debug-remote? (debug-presence? presence))
+                               (begin
+                                 (callee-garble-hack)
+                                 (callee-garble-hack)
+                                 (debug-remote presence '<<< remote-title remote-uuid 'connect connection)))
+                           (presence-register-connection presence remote-uuid connection)
+                           (let ((thread (make-thread
+                                           (lambda ()
+                                             (connection-process connection))
+                                           'presence-connected)))
+                             (connection-thread-set! connection thread)
+                             (thread-base-priority-set! thread (presence-priority presence))
+                             (thread-start! thread)
+                             (or reference-proxy remote-uuid)))))))))))
       presence)))
 
 
@@ -415,9 +412,9 @@
         ((atom? obj)
          obj)
         ((object? obj)
-         (category-name (class-of obj)))
+         (object-class obj))
         (else
-         (type->specifier (class-of obj)))))
+         (type->specifier (object-class obj)))))
 
 
 ;;;
@@ -447,6 +444,7 @@
 (define (new-connection presence port remote-uuid remote-title service address lag invoke-handler process-handler processing-handler execute-handler)
   (let ((connection
           (make-connection
+            'connection
             #f
             presence
             port
@@ -494,24 +492,27 @@
 
 
 (define (connection-register-invocation connection mutex)
-  (mutex-lock! invocations-mutex)
-  (set! invocations (cons mutex invocations))
-  (mutex-unlock! invocations-mutex))
+  (let ((invocations-mutex (connection-invocations-mutex connection)))
+    (mutex-lock! invocations-mutex)
+    (connection-invocations-set! connection (cons mutex (connection-invocations connection)))
+    (mutex-unlock! invocations-mutex)))
 
 
 (define (connection-unregister-invocation connection mutex)
-  (mutex-lock! invocations-mutex)
-  (set! invocations (remove! mutex invocations))
-  (mutex-unlock! invocations-mutex))
+  (let ((invocations-mutex (connection-invocations-mutex connection)))
+    (mutex-lock! invocations-mutex)
+    (connection-invocations-set! connection (remove mutex (connection-invocations connection)))
+    (mutex-unlock! invocations-mutex)))
 
 
 (define (connection-sever-invocations connection)
-  (mutex-lock! invocations-mutex)
-  (for-each (lambda (mutex)
-              (mutex-specific-set! mutex (new-connection-broke "Invocation severed"))
-              (mutex-unlock! mutex))
-            invocations)
-  (mutex-unlock! invocations-mutex))
+  (let ((invocations-mutex (connection-invocations-mutex connection)))
+    (mutex-lock! invocations-mutex)
+    (for-each (lambda (mutex)
+                (mutex-specific-set! mutex (new-connection-broke "Invocation severed"))
+                (mutex-unlock! mutex))
+              (connection-invocations connection))
+    (mutex-unlock! invocations-mutex)))
 
 
 ;;;
@@ -540,9 +541,9 @@
               (bind (kind . rest) message
                 (case kind
                   ((post send call)
-                   (execute connection kind rest))
+                   (connection-execute connection kind rest))
                   ((result)
-                   (result connection rest)))))
+                   (connection-result connection rest)))))
             (loop)))))
     connection))
 
@@ -557,32 +558,32 @@
       (begin
         (debug-remote presence '>>> remote-title remote-uuid kind method-name)
         (caller-garble-hack)))
-  (let ((ior (get-ior remote-proxy)))
+  (let ((ior (remote-proxy-ior remote-proxy)))
     ((connection-invoke-handler connection)
       (lambda (connection)
         (if (eq? kind 'post)
-            (write-message connection `(,kind ,method-name #f ,ior ,arguments))
+            (connection-write-message connection `(,kind ,method-name #f ,ior ,arguments))
           (let ((mutex (make-mutex 'invoke)))
             (let ((cookie (object->serial mutex)))
               (mutex-lock! mutex)
-              (write-message connection `(,kind ,method-name ,cookie ,ior ,arguments))
-              (register-invocation connection mutex)
+              (connection-write-message connection `(,kind ,method-name ,cookie ,ior ,arguments))
+              (connection-register-invocation connection mutex)
               (mutex-lock! mutex)
               (mutex-unlock! mutex)
-              (unregister-invocation connection mutex)
+              (connection-unregister-invocation connection mutex)
               (let ((result (mutex-specific mutex)))
-                (if (is? result Connection-Broke)
+                (if (connection-broke-exception? result)
                     (signal result)
                   result))))))
       connection)))
 
 
 (define (connection-invoke-live? connection remote-proxy timeout)
-  (let ((ior (get-ior remote-proxy)))
+  (let ((ior (remote-proxy-ior remote-proxy)))
     (let ((mutex (make-mutex 'invoke)))
       (let ((cookie (object->serial mutex)))
         (mutex-lock! mutex)
-        (write-message connection `(call live? ,cookie ,ior ()))
+        (connection-write-message connection `(call live? ,cookie ,ior ()))
         (let ((timed-out (not (mutex-lock! mutex timeout))))
           (mutex-unlock! mutex)
           (if timed-out
@@ -615,20 +616,20 @@
           (callee-garble-hack)
           (debug-remote presence '<<< remote-title remote-uuid 'execute method-name)))
     (let ((thread
-            (new-thread
+            (make-thread
               (lambda ()
                 (let ((local-proxy (ior->proxy ior)))
-                  (let ((result (apply (dispatch (class-of local-proxy) method-name) local-proxy arguments)))
-                    (execute-handler
+                  (let ((result (apply (dispatch local-proxy method-name) local-proxy arguments)))
+                    ((connection-execute-handler connection)
                       (lambda (connection)
                         (case kind
                           ((send)
-                           (write-message connection `(result ,kind ,method-name ,cookie ,(unspecified))))
+                           (connection-write-message connection `(result ,kind ,method-name ,cookie ,(unspecified))))
                           ((call)
-                           (write-message connection `(result ,kind ,method-name ,cookie ,result)))))
+                           (connection-write-message connection `(result ,kind ,method-name ,cookie ,result)))))
                       connection))))
               (list 'execute method-name))))
-      (thread-base-priority-set! thread (presence-priority presence))
+      (thread-base-priority-set! thread (presence-priority (connection-presence connection)))
       (thread-start! thread))))
 
 
@@ -638,15 +639,21 @@
 
 
 (define (connection-write-message connection message)
-  (unwind-protect
-      (begin
-        (mutex-lock! write-mutex)
-        (if (and debug-remote-io? (debug-presence? presence))
-            (begin
-              (debug-remote presence '>>> remote-title remote-uuid 'write (car message) (cadr message) (caddr message))
-              (caller-garble-hack)))
-        (write-port port (presence-code presence) (presence-version presence) message))
-    (mutex-unlock! write-mutex)))
+  (let ((write-mutex (connection-write-mutex connection)))
+    (dynamic-wind
+      (lambda ()
+        #f)
+      (lambda ()
+        (let ((presence (connection-presence connection))
+              (port (connection-port connection)))
+          (mutex-lock! write-mutex)
+          (if (and debug-remote-io? (debug-presence? presence))
+              (begin
+                (debug-remote presence '>>> remote-title remote-uuid 'write (car message) (cadr message) (caddr message))
+                (caller-garble-hack)))
+          (write-port port (presence-code presence) (presence-version presence) message)))
+      (lambda ()
+        (mutex-unlock! write-mutex)))))
 
 
 (define (connection-read-message connection)
@@ -708,18 +715,18 @@
 
 
 (define (post-remote method-name remote-proxy . arguments)
-  (let ((connection (proxy->connection remote-proxy)))
-    (invoke connection 'post method-name remote-proxy arguments)))
+  (let ((connection (remote-proxy->connection remote-proxy)))
+    (connection-invoke connection 'post method-name remote-proxy arguments)))
 
 
 (define (send-remote method-name remote-proxy . arguments)
-  (let ((connection (proxy->connection remote-proxy)))
-    (invoke connection 'send method-name remote-proxy arguments)))
+  (let ((connection (remote-proxy->connection remote-proxy)))
+    (connection-invoke connection 'send method-name remote-proxy arguments)))
 
 
 (define (call-remote method-name remote-proxy . arguments)
-  (let ((connection (proxy->connection remote-proxy)))
-    (invoke connection 'call method-name remote-proxy arguments)))
+  (let ((connection (remote-proxy->connection remote-proxy)))
+    (connection-invoke connection 'call method-name remote-proxy arguments)))
 
 
 ;;;
@@ -809,24 +816,24 @@
 
 
 (define (new-remote-register purpose uuid)
-  (ior->proxy (new-ior purpose uuid (serialize-runtime-reference (reify-reference Register-Stub)) #f '())))
+  (ior->proxy (new-ior purpose uuid 'register #f '())))
 
 
 (define (connect-remote-register host port #!key (purpose #f))
   (let ((presence (require-presence purpose)))
-    (let ((uuid (connect-remote presence host port #f)))
+    (let ((uuid (presence-connect-remote presence host port #f)))
       (new-remote-register purpose uuid))))
 
 
 (define (connect-remote-reference host port reference #!key (purpose #f))
   (let ((presence (require-presence purpose)))
-    (connect-remote presence host port reference)))
+    (presence-connect-remote presence host port reference)))
 
 
 (define (get-remote-register remote-proxy)
-  (let ((ior (get-ior remote-proxy)))
-    (let ((purpose (get-purpose ior))
-          (uuid (get-uuid ior)))
+  (let ((ior (remote-proxy-ior remote-proxy)))
+    (let ((purpose (ior-purpose ior))
+          (uuid (ior-uuid ior)))
       (let ((presence (require-presence purpose)))
         (new-remote-register purpose uuid)))))
 
@@ -835,21 +842,21 @@
   (let ((presence (require-presence purpose)))
     (let ((register (local-register purpose))
           (proxy (new proxy-class presence object)))
-      (register-object register name proxy)
+      (register-proxy-register-object register name proxy)
       proxy)))
 
 
 (define (proxy-connection-info client proxy)
   (let ((client-presence (get-presence client))
-        (client-uuid (get-uuid (get-ior client))))
-    (let ((client-connection (require-connection client-presence client-uuid)))
+        (client-uuid (ior-uuid (get-ior client))))
+    (let ((client-connection (presence-require-connection client-presence client-uuid)))
       (let ((host (get-address client-connection)))
         (if (local-proxy? proxy)
             (let ((port (listener-listening-port (get-remote-listener))))
               (list proxy host port))
-          (let ((proxy-presence (get-presence proxy))
-                (proxy-uuid (get-uuid (get-ior proxy))))
-            (let ((proxy-connection (require-connection proxy-presence proxy-uuid)))
+          (let ((proxy-presence (proxy-presence proxy))
+                (proxy-uuid (ior-uuid (remote-proxy-ior proxy))))
+            (let ((proxy-connection (presence-require-connection proxy-presence proxy-uuid)))
               (let ((port (get-service proxy-connection)))
                 ;; we cannot use the peer port number because if it was him that connected
                 ;; to us then it will have a distinct port from its process remote listener
@@ -860,20 +867,20 @@
 
 (define (connect-remote-proxy info)
   (bind (proxy host port) info
-    (let ((presence (get-presence proxy))
-          (ior (get-ior proxy)))
-      (let ((uuid (get-uuid ior)))
+    (let ((presence (proxy-presence proxy))
+          (ior (remote-proxy-ior proxy)))
+      (let ((uuid (ior-uuid ior)))
         ;; already connected
         (if (not (presence-find-connection presence uuid))
-            (if (not (uuid=? (connect-remote presence host port #f)
+            (if (not (uuid=? (presence-connect-remote presence host port #f)
                              uuid))
                 (error "Fatal")))
         proxy))))
 
 
 (define (disconnect-remote-proxy remote-proxy)
-  (let ((presence (get-presence remote-proxy))
-        (uuid (get-uuid (get-ior remote-proxy))))
+  (let ((presence (proxy-presence remote-proxy))
+        (uuid (ior-uuid (remote-proxy-ior remote-proxy))))
     (let ((connection (presence-find-connection presence uuid)))
       ;; robust
       (if connection
@@ -883,24 +890,24 @@
 
 
 (define (close-remote-proxy remote-proxy)
-  (let ((presence (get-presence remote-proxy))
-        (uuid (get-uuid (get-ior remote-proxy))))
-    (let ((connection (require-connection presence uuid)))
+  (let ((presence (proxy-presence remote-proxy))
+        (uuid (ior-uuid (remote-proxy-ior remote-proxy))))
+    (let ((connection (presence-require-connection presence uuid)))
       (set-closing? connection #t)
       (close-connection presence uuid connection))))
 
 
 (define (closing-remote-proxy remote-proxy)
-  (let ((presence (get-presence remote-proxy))
-        (uuid (get-uuid (get-ior remote-proxy))))
-    (let ((connection (require-connection presence uuid)))
+  (let ((presence (proxy-presence remote-proxy))
+        (uuid (ior-uuid (remote-proxy-ior remote-proxy))))
+    (let ((connection (presence-require-connection presence uuid)))
       (set-closing? connection #t))))
 
 
 ;; quick safe version
 (define (closing-remote-proxy-safe remote-proxy)
-  (let ((presence (get-presence remote-proxy))
-        (uuid (get-uuid (get-ior remote-proxy))))
+  (let ((presence (proxy-presence remote-proxy))
+        (uuid (ior-uuid (remote-proxy-ior remote-proxy))))
     (let ((connection (presence-find-connection presence uuid)))
       (if connection
           (set-closing? connection #t)))))
@@ -919,17 +926,13 @@
 ;;;
 
 
-(define (ior? object)
-  (is? object IOR))
-
-
 (define (ior=? x y)
-  (and (uuid=? (get-uuid x) (get-uuid y))
-       (reference=? (get-reference x) (get-reference y))))
+  (and (uuid=? (ior-uuid x) (ior-uuid y))
+       (reference=? (ior-reference x) (ior-reference y))))
 
 
 (define (ior-server=? x y)
-  (uuid=? (get-uuid x) (get-uuid y)))
+  (uuid=? (ior-uuid x) (ior-uuid y)))
 
 
 (define (host=? x y)
@@ -945,24 +948,23 @@
 
 
 (define (ior->proxy ior)
-  (let ((purpose (get-purpose ior)))
+  (let ((purpose (ior-purpose ior)))
     (let ((presence (require-presence purpose)))
       (define (local-ior? ior)
-        (find-presence-by-uuid (get-uuid ior)))
+        (find-presence-by-uuid (ior-uuid ior)))
       
       (define (local->proxy stub-interface ior)
         (define (reference->local-proxy stub-interface reference)
           (if (not reference)
               (local-register purpose)
-            (new (local-class stub-interface) presence (serial->object reference))))
+            ((local-class stub-interface) presence (serial->object reference))))
         
-        (reference->local-proxy stub-interface (get-reference ior)))
+        (reference->local-proxy stub-interface (ior-reference ior)))
       
       (define (remote->proxy stub-interface ior)
-        (let ((remote-class (remote-class stub-interface)))
-          (new remote-class presence ior (get-values ior))))
+        ((remote-class stub-interface) presence ior (ior-values ior)))
       
-      (let ((stub-interface (resolve-runtime-reference (deserialize-runtime-reference (get-stub-interface ior)))))
+      (let ((stub-interface (ior-stub-interface ior)))
         (if (local-ior? ior)
             (local->proxy stub-interface ior)
           (remote->proxy stub-interface ior))))))
@@ -971,10 +973,6 @@
 ;;;
 ;;;; Proxy
 ;;;
-
-
-(define (proxy? object)
-  (is? object Proxy))
 
 
 (define (proxy=? x y)
@@ -988,8 +986,8 @@
 
 (define (proxy-server=? x y)
   (cond ((and (remote-proxy? x) (remote-proxy? y))
-         (ior-server=? (get-ior x)
-                       (get-ior y)))
+         (ior-server=? (remote-proxy-ior x)
+                       (remote-proxy-ior y)))
         ((and (local-proxy? x) (local-proxy? y))
          #t)
         (else
@@ -1001,13 +999,9 @@
 ;;;
 
 
-(define (local-proxy? object)
-  (is? object Local-Proxy))
-
-
 (define (local-proxy=? x y)
-  (eq? (get-object x)
-       (get-object y)))
+  (eq? (local-proxy-object x)
+       (local-proxy-object y)))
 
 
 ;;;
@@ -1015,23 +1009,19 @@
 ;;;
 
 
-(define (remote-proxy? object)
-  (is? object Remote-Proxy))
-
-
 (define (remote-proxy=? x y)
-  (ior=? (get-ior x)
-         (get-ior y)))
+  (ior=? (remote-proxy-ior x)
+         (remote-proxy-ior y)))
 
 
 (define (remote-proxy->connection proxy)
-  (let ((presence (get-presence proxy)))
-    (require-connection presence (get-uuid (get-ior proxy)))))
+  (let ((presence (proxy-presence proxy)))
+    (presence-require-connection presence (ior-uuid (remote-proxy-ior proxy)))))
 
 
 (define (remote-proxy-connected? proxy)
-  (let ((presence (get-presence proxy)))
-    (presence-find-connection presence (get-uuid (get-ior proxy)))))
+  (let ((presence (proxy-presence proxy)))
+    (presence-find-connection presence (ior-uuid (remote-proxy-ior proxy)))))
 
 
 ;;;
@@ -1057,34 +1047,36 @@
 
 
 (define (marshall-local-proxy proxy)
-  (let ((presence (get-presence proxy)))
+  (let ((presence (proxy-presence proxy)))
     (define (local-proxy->reference)
-      (if (proxy=? proxy (get-register presence))
+      (if (proxy=? proxy (presence-register presence))
           #f
-        (let ((object (get-object proxy)))
+        (let ((object (local-proxy-object proxy)))
           (gc-protect object)
           (object->serial object))))
     
     (let ((ior
             (new-ior
-              (get-purpose presence)
-              (get-uuid presence)
-              (serialize-runtime-reference (stub-reference proxy))
+              (presence-purpose presence)
+              (presence-uuid presence)
+              (proxy-stub proxy)
               (local-proxy->reference)
+              '()
+              #;
               (proxy-values proxy))))
-      (serialize-object (class-of proxy) (encode-ior ior)))))
+      (serialize-object (object-class proxy) (encode-ior ior)))))
 
 
 (define (marshall-remote-proxy proxy)
-  (serialize-object (class-of proxy) (encode-ior (get-ior proxy))))
+  (serialize-object (object-class proxy) (encode-ior (remote-proxy-ior proxy))))
 
 
 (define (encode-ior ior)
-  (vector (get-purpose ior)
-          (get-uuid ior)
-          (get-stub-interface ior)
-          (get-reference ior)
-          (get-values ior)))
+  (vector (ior-purpose ior)
+          (ior-uuid ior)
+          (ior-stub-interface ior)
+          (ior-reference ior)
+          (ior-values ior)))
 
 
 ;;;
@@ -1158,7 +1150,7 @@
 
 (define (debug-presence? presence)
   (or (not debug-remote-ignore-presences)
-      (not (memq? (get-purpose presence) debug-remote-ignore-presences))))
+      (not (memq? (presence-purpose presence) debug-remote-ignore-presences))))
 
 
 (define (debug-remote-method? method-name)

@@ -35,28 +35,25 @@
 ;;;  See www.jazzscheme.org for details.
 
 
-#;
-(method meta override (marshall-object version object)
-  (serialize-object (class-of object)
-                    (vector (serialize (get-major object))
-                            (serialize (get-minor object))
-                            (serialize (get-revision object))
-                            (serialize (get-build object))
-                            (serialize (get-stage object)))))
+(define (marshall-version version)
+  (serialize-object 'version
+                    (vector (version-major version)
+                            (version-minor version)
+                            (version-revision version)
+                            (version-build version)
+                            (version-stage version))))
 
 
-#;
-(method meta override (unmarshall-object version content)
-  (bind-vector (major minor revision build stage) content
-    (allocate version
-              (deserialize major)
-              (deserialize minor)
-              (deserialize revision)
-              (deserialize build)
-              (deserialize stage))))
+(define (unmarshall-version content)
+  (new-ior (vector-ref content 0)
+           (vector-ref content 1)
+           (vector-ref content 2)
+           (vector-ref content 3)
+           (vector-ref content 4)))
 
 
 (define-type-of-object version
+  id: 4B49F699-7BB8-4F09-B191-D43C213BB4B9
   major
   minor
   revision
@@ -67,6 +64,7 @@
 (define (new-version major minor #!optional (revision 0) (build 0) (stage #f))
   (let ((version
           (make-version
+            'version
             #f
             major
             minor
@@ -90,7 +88,7 @@
 
 (define (version-print version output readably)
   (format output "~{{a} {a}}"
-    (category-name (class-of version))
+    (object-class version)
     (present-string version)))
 
 

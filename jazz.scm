@@ -35,14 +35,32 @@
 ;;;  See www.jazzscheme.org for details.
 
 
-;; todo
-(define (current-monotonic)
-  23)
+;;;
+;;;; Serial
+;;;
+
+
+(define (object->serial obj)
+  (object->serial-number obj))
+
+
+(define (serial->object number)
+  (serial-number->object number))
 
 
 ;;;
 ;;;; List
 ;;;
+
+
+(define (remove item lst)
+  (let iter ((scan lst))
+    (if (not (null? scan))
+        (let ((value (car scan)))
+          (if (eq? value item)
+              (iter (cdr scan))
+            (cons value (iter (cdr scan)))))
+      '())))
 
 
 (define (list-find list target key test start return)
@@ -193,14 +211,30 @@
 ;;;
 
 
-;; todo
+(define-type serialized
+  id: 5E781AB5-7492-4052-8E00-15B72A7A19FC
+  (class read-only:)
+  (content read-only:))
+
+
+(define (serialize-object class content)
+  (make-serialized class content))
+
+
 (define (serialize obj)
-  obj)
+  (if (object? obj)
+      (or (marshall-object (object-class obj) obj)
+          (error "Unable to serialize" obj))
+    obj))
 
 
-;; todo
 (define (deserialize obj)
-  obj)
+  (if (serialized? obj)
+      (let ((class (serialized-class obj))
+            (content (serialized-content obj)))
+        (or (unmarshall-object class content)
+            (error "Unable to deserialize" class)))
+    obj))
 
 
 ;;;
