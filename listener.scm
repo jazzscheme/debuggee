@@ -59,21 +59,21 @@
 ;;;
 
 
-(define (listener-start self)
-  (listener-start-listener self))
+(define (listener-start listener)
+  (listener-start-listener listener))
 
 
-(define (listener-stop self)
-  (exit-thread (listener-server-thread self))
-  (listener-server-thread-set! self #f))
+(define (listener-stop listener)
+  (exit-thread (listener-server-thread listener))
+  (listener-server-thread-set! listener #f))
 
 
-(define (listener-start-listener self)
-  (let ((host (listener-host self))
-        (service (listener-service self))
-        (alternate-service (listener-alternate-service self)))
+(define (listener-start-listener listener)
+  (let ((host (listener-host listener))
+        (service (listener-service listener))
+        (alternate-service (listener-alternate-service listener)))
     (let ((server-port (open-tcp-server (list server-address: host port-number: (resolve-service service) keep-alive: #t))))
-      (listener-socket-info-set! self (tcp-server-socket-info server-port))
+      (listener-socket-info-set! listener (tcp-server-socket-info server-port))
       (let ((thread
               (make-thread
                 (lambda ()
@@ -83,18 +83,18 @@
                            (make-thread
                              (lambda ()
                                (pp 'accept-connection)
-                               (listener-accept-connection self port))))
+                               (listener-accept-connection listener port))))
                          (loop)))))))
         (thread-start! thread)
-        (listener-server-thread-set! self thread)))))
+        (listener-server-thread-set! listener thread)))))
 
 
-(define (listener-listening-host self)
-  (socket-info-address (listener-socket-info self)))
+(define (listener-listening-host listener)
+  (socket-info-address (listener-socket-info listener)))
 
 
-(define (listener-listening-port self)
-  (socket-info-port-number (listener-socket-info self)))
+(define (listener-listening-port listener)
+  (socket-info-port-number (listener-socket-info listener)))
 
 
 ;;;
@@ -102,5 +102,5 @@
 ;;;
 
 
-(define (listener-accept-connection self port)
-  (presence-accept-remote (listener-presence self) port))
+(define (listener-accept-connection listener port)
+  (presence-accept-remote (listener-presence listener) port))

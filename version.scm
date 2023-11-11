@@ -36,7 +36,7 @@
 
 
 #;
-(method meta override (marshall-object self object)
+(method meta override (marshall-object version object)
   (serialize-object (class-of object)
                     (vector (serialize (get-major object))
                             (serialize (get-minor object))
@@ -46,9 +46,9 @@
 
 
 #;
-(method meta override (unmarshall-object self content)
+(method meta override (unmarshall-object version content)
   (bind-vector (major minor revision build stage) content
-    (allocate self
+    (allocate version
               (deserialize major)
               (deserialize minor)
               (deserialize revision)
@@ -80,13 +80,13 @@
        (= (version-build x) (version-build y))))
 
 
-(define (version-print self output readably)
+(define (version-print version output readably)
   (format output "~{{a} {a}}"
-    (category-name (class-of self))
-    (present-string self)))
+    (category-name (class-of version))
+    (present-string version)))
 
 
-(define (version-present-string self)
+(define (version-present-string version)
   (format "{a} {a}{?: {a}~}{?: {a}~}{?: {a}~}"
           major
           minor
@@ -95,7 +95,7 @@
           stage stage))
 
 
-(define (version-present self)
+(define (version-present version)
   (if (and (= major -1)
            (= minor -1))
       "Unknown"
@@ -111,11 +111,6 @@
             (if (not stage)
                 ""
               (format " {a}" stage)))))
-
-
-(define (version-compatible? self version)
-  (and (= major (get-major version))
-       (= minor (get-minor version))))
 
 
 (define (version->bytes version proc)

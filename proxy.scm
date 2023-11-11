@@ -52,12 +52,12 @@
 
 
 #;
-(method meta override (marshall-object self object)
+(method meta override (marshall-object local-proxy object)
   (marshall-local-proxy object))
 
 
 #;
-(method meta override (unmarshall-object self content)
+(method meta override (unmarshall-object local-proxy content)
   (unmarshall-proxy content))
 
 
@@ -73,19 +73,19 @@
     object))
 
 
-(define (local-proxy-print self output readably)
-  (print-unreadable self output
+(define (local-proxy-print local-proxy output readably)
+  (print-unreadable local-proxy output
     (lambda (output)
       (format output "{?{a} ~}{s}"
         (get-purpose presence)
         object))))
 
 
-(define (local-proxy-proxy-values self)
+(define (local-proxy-proxy-values local-proxy)
   '())
 
 
-(define (local-proxy-live? self)
+(define (local-proxy-live? local-proxy)
   #t)
 
 
@@ -95,12 +95,12 @@
 
 
 #;
-(method meta override (marshall-object self object)
+(method meta override (marshall-object remote-proxy object)
   (marshall-remote-proxy object))
 
 
 #;
-(method meta override (unmarshall-object self content)
+(method meta override (unmarshall-object remote-proxy content)
   (unmarshall-proxy content))
 
 
@@ -117,8 +117,8 @@
     values))
 
 
-(define (remote-proxy-print self output readably)
-  (print-unreadable self output
+(define (remote-proxy-print remote-proxy output readably)
+  (print-unreadable remote-proxy output
     (lambda (output)
       (format output "{?{a} ~}{s}"
         (get-purpose presence)
@@ -126,11 +126,11 @@
 
 
 ;; meant to be used by the remoting system only
-(define (remote-proxy-set-values self lst)
+(define (remote-proxy-set-values remote-proxy lst)
   (set! values lst))
 
 
-(define (remote-proxy-proxy-value self keyword thunk)
+(define (remote-proxy-proxy-value remote-proxy keyword thunk)
   (let ((prop (getprop values keyword)))
     (if prop
         (cadr prop)

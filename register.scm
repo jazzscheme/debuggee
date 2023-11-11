@@ -54,25 +54,25 @@
     (make-table test: eq?)))
 
 
-(define (register-find-object self name)
+(define (register-find-object register name)
   (table-ref objects name #f))
 
 
-(define (register-require-object self name)
-  (or (find-object self name)
+(define (register-require-object register name)
+  (or (find-object register name)
       (error "Unable to find in register" name)))
 
 
-(define (register-load-object self module-name name)
+(define (register-load-object register module-name name)
   (load-unit module-name)
-  (require-object self name))
+  (require-object register name))
 
 
-(define (register-load-reference self reference)
+(define (register-load-reference register reference)
   (if (symbol? reference)
-      (require-object self reference)
+      (require-object register reference)
     (bind (module-name name) reference
-      (load-object self module-name name))))
+      (load-object register module-name name))))
 
 
 ;;;
@@ -80,8 +80,8 @@
 ;;;
 
 
-(define (register-register-object self name object #!key (error? #t))
-  (if (find-object self name)
+(define (register-register-object register name object #!key (error? #t))
+  (if (find-object register name)
       (if error?
           (error "Object is already registered" name)
         #f)
@@ -90,8 +90,8 @@
       #t)))
 
 
-(define (register-unregister-object self name #!key (error? #t))
-  (if (not (find-object self name))
+(define (register-unregister-object register name #!key (error? #t))
+  (if (not (find-object register name))
       (if error?
           (error "Object is not registered" name)
         #f)
@@ -105,5 +105,5 @@
 ;;;
 
 
-(define (register-get-manifest self)
+(define (register-get-manifest register)
   (table-keys objects))

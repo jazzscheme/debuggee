@@ -52,9 +52,9 @@
     values))
 
 
-(define (ior-print self output readably)
+(define (ior-print ior output readably)
   (format output "~{{a} {s} {s} {s} {s} {s}}"
-    (category-name (class-of self))
+    (category-name (class-of ior))
     purpose
     uuid
     stub-interface
