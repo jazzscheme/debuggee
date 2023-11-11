@@ -16,8 +16,8 @@
 (define p
   (require-presence #f))
 
-(start-remote-presence)
+(start-presence)
 
-(pp (remote-presence-connect-remote p localhost 50000 #f))
+(pp (presence-connect-remote p localhost 50000 #f))
 
 (thread-sleep! +inf.0)

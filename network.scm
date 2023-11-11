@@ -42,6 +42,10 @@
   "*")
 
 
+(define (string->host string)
+  string)
+
+
 (define (port->string port)
   (number->string port))
 

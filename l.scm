@@ -14,8 +14,8 @@
 (include "presence.scm")
 
 (define p
-  (new-remote-presence #f))
+  (new-presence #f))
 
-(start-remote-presence)
+(start-presence)
 
 (thread-sleep! +inf.0)

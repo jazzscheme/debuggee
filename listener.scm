@@ -35,7 +35,7 @@
 ;;;  See www.jazzscheme.org for details.
 
 
-(define-type remote-listener
+(define-type listener
   presence
   host
   service
@@ -44,8 +44,8 @@
   server-thread)
 
 
-(define (new-remote-listener presence #!key (host #f) (service #f) (alternate-service #f))
-  (make-remote-listener
+(define (new-listener presence #!key (host #f) (service #f) (alternate-service #f))
+  (make-listener
     presence
     host
     service
@@ -59,21 +59,21 @@
 ;;;
 
 
-(define (remote-listener-start self)
-  (remote-listener-start-listener self))
+(define (listener-start self)
+  (listener-start-listener self))
 
 
-(define (remote-listener-stop self)
-  (exit-thread (remote-listener-server-thread self))
-  (remote-listener-server-thread-set! self #f))
+(define (listener-stop self)
+  (exit-thread (listener-server-thread self))
+  (listener-server-thread-set! self #f))
 
 
-(define (remote-listener-start-listener self)
-  (let ((host (remote-listener-host self))
-        (service (remote-listener-service self))
-        (alternate-service (remote-listener-alternate-service self)))
+(define (listener-start-listener self)
+  (let ((host (listener-host self))
+        (service (listener-service self))
+        (alternate-service (listener-alternate-service self)))
     (let ((server-port (open-tcp-server (list server-address: host port-number: (resolve-service service) keep-alive: #t))))
-      (remote-listener-socket-info-set! self (tcp-server-socket-info server-port))
+      (listener-socket-info-set! self (tcp-server-socket-info server-port))
       (let ((thread
               (make-thread
                 (lambda ()
@@ -83,18 +83,18 @@
                            (make-thread
                              (lambda ()
                                (pp 'accept-connection)
-                               (remote-listener-accept-connection self port))))
+                               (listener-accept-connection self port))))
                          (loop)))))))
         (thread-start! thread)
-        (remote-listener-server-thread-set! self thread)))))
+        (listener-server-thread-set! self thread)))))
 
 
-(define (remote-listener-listening-host self)
-  (socket-info-address (remote-listener-socket-info self)))
+(define (listener-listening-host self)
+  (socket-info-address (listener-socket-info self)))
 
 
-(define (remote-listener-listening-port self)
-  (socket-info-port-number (remote-listener-socket-info self)))
+(define (listener-listening-port self)
+  (socket-info-port-number (listener-socket-info self)))
 
 
 ;;;
@@ -102,5 +102,5 @@
 ;;;
 
 
-(define (remote-listener-accept-connection self port)
-  (remote-presence-accept-remote (remote-listener-presence self) port))
+(define (listener-accept-connection self port)
+  (presence-accept-remote (listener-presence self) port))

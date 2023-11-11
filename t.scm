@@ -27,6 +27,6 @@
 (pp (list 'remote remote (proxy-live? remote)))
 
 (define p
-  (new-remote-presence #f))
+  (new-presence #f))
 
 (pp p)
