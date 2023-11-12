@@ -212,7 +212,7 @@
 
 
 (define-type serialized
-  id: 5E781AB5-7492-4052-8E00-15B72A7A19FC
+  id: 16E8E4BA-FD59-4E7A-A219-DFE934B6CC18
   (class read-only:)
   (content read-only:))
 

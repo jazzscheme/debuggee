@@ -45,11 +45,7 @@
 
 
 (define (unmarshall-ior content)
-  (new-ior (vector-ref content 0)
-           (vector-ref content 1)
-           (vector-ref content 2)
-           (vector-ref content 3)
-           (vector-ref content 4)))
+  (unmarshall-proxy content))
 
 
 (define-type-of-object ior

@@ -13,6 +13,7 @@
 (include "register.scm")
 (include "transmission.scm")
 (include "presence.scm")
+(include "remotable.scm")
 (include "stubs.scm")
 (include "debugger.scm")
 
@@ -26,6 +27,6 @@
 
 (let ((register (connect-remote-register localhost 60000 purpose: 'debugging)))
   (let ((debuggee-process (register-proxy-find-object register 'debuggee)))
-    (pp (debuggee-process-proxy-foo debuggee-process))))
+    (pp (debuggee-process-proxy-get-threads debuggee-process))))
 
 (thread-sleep! +inf.0)

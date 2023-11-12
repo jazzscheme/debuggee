@@ -56,6 +56,10 @@
   (setup-object debuggee-process))
 
 
+(define (debuggee-process-get-threads debuggee-process)
+  '(hello from the scheme world!))
+
+
 ;;;
 ;;;; Local
 ;;;

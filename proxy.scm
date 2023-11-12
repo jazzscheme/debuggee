@@ -58,16 +58,6 @@
 ;;;
 
 
-#;
-(method meta override (marshall-object local-proxy object)
-  (marshall-local-proxy object))
-
-
-#;
-(method meta override (unmarshall-object local-proxy content)
-  (unmarshall-proxy content))
-
-
 (define-type-of-proxy local-proxy
   extender: define-type-of-local-proxy
   object)
@@ -108,16 +98,6 @@
 ;;;
 ;;;; Remote
 ;;;
-
-
-#;
-(method meta override (marshall-object remote-proxy object)
-  (marshall-remote-proxy object))
-
-
-#;
-(method meta override (unmarshall-object remote-proxy content)
-  (unmarshall-proxy content))
 
 
 (define-type-of-proxy remote-proxy

@@ -1,0 +1,12 @@
+(script jazz
+
+(import (jazz.debuggee)
+        (jazz.debuggee.stub)
+        (jazz.network)
+        (jazz.presence))
+
+(start-remote-presence purpose: 'debugging)
+
+(setup-local-process)
+
+(sleep +inf.0))

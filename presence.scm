@@ -206,7 +206,7 @@
 
 (define (setup-presence presence)
   (setup-object presence)
-  (presence-register-set! presence (new-register-local-proxy presence)))
+  (presence-register-set! presence (new-register-local-proxy presence (new-register))))
 
 
 (define (presence-print presence output readably)
@@ -610,7 +610,7 @@
 
 
 (define (connection-execute connection kind rest)
-  (bind (method-name cookie ior arguments) rest
+  (bind (method-name cookie local-proxy arguments) rest
     (if (and debug-remote? (debug-presence? presence) (debug-remote-method? method-name))
         (begin
           (callee-garble-hack)
@@ -618,16 +618,15 @@
     (let ((thread
             (make-thread
               (lambda ()
-                (let ((local-proxy (ior->proxy ior)))
-                  (let ((result (apply (dispatch local-proxy method-name) local-proxy arguments)))
-                    ((connection-execute-handler connection)
-                      (lambda (connection)
-                        (case kind
-                          ((send)
-                           (connection-write-message connection `(result ,kind ,method-name ,cookie ,(unspecified))))
-                          ((call)
-                           (connection-write-message connection `(result ,kind ,method-name ,cookie ,result)))))
-                      connection))))
+                (let ((result (apply (dispatch local-proxy method-name) local-proxy arguments)))
+                  ((connection-execute-handler connection)
+                    (lambda (connection)
+                      (case kind
+                        ((send)
+                         (connection-write-message connection `(result ,kind ,method-name ,cookie ,(unspecified))))
+                        ((call)
+                         (connection-write-message connection `(result ,kind ,method-name ,cookie ,result)))))
+                   connection)))
               (list 'execute method-name))))
       (thread-base-priority-set! thread (presence-priority (connection-presence connection)))
       (thread-start! thread))))
@@ -957,12 +956,12 @@
         (define (reference->local-proxy stub-interface reference)
           (if (not reference)
               (local-register purpose)
-            ((local-class stub-interface) presence (serial->object reference))))
+            ((local-proxy-class stub-interface) presence (serial->object reference))))
         
         (reference->local-proxy stub-interface (ior-reference ior)))
       
       (define (remote->proxy stub-interface ior)
-        ((remote-class stub-interface) presence ior (ior-values ior)))
+        ((remote-proxy-class stub-interface) presence ior (ior-values ior)))
       
       (let ((stub-interface (ior-stub-interface ior)))
         (if (local-ior? ior)
@@ -1064,11 +1063,12 @@
               '()
               #;
               (proxy-values proxy))))
-      (serialize-object (object-class proxy) (encode-ior ior)))))
+      (serialize-object (object-class ior) (encode-ior ior)))))
 
 
 (define (marshall-remote-proxy proxy)
-  (serialize-object (object-class proxy) (encode-ior (remote-proxy-ior proxy))))
+  (let ((ior (remote-proxy-ior proxy)))
+    (serialize-object (object-class ior) (encode-ior ior))))
 
 
 (define (encode-ior ior)

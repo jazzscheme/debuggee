@@ -13,6 +13,7 @@
 (include "register.scm")
 (include "transmission.scm")
 (include "presence.scm")
+(include "remotable.scm")
 (include "stubs.scm")
 (include "debuggee.scm")
 

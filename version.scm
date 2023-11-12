@@ -53,7 +53,6 @@
 
 
 (define-type-of-object version
-  id: 4B49F699-7BB8-4F09-B191-D43C213BB4B9
   major
   minor
   revision

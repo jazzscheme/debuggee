@@ -35,42 +35,40 @@
 ;;;  See www.jazzscheme.org for details.
 
 
-#;
-(class package ,interface-class extends Stub-Interface
-  (method override (local-class self)
-    ,local-class)
-  (method override (remote-class self)
-    ,remote-class))
+;;;
+;;;; Local
+;;;
 
 
-#;
-(interface ,@stub-modifiers ,stub-interface extends Remotable-Stub metaclass ,interface-class
-  ,@(queue-list proxies))
+(define local-proxy-classes
+  (make-table))
 
 
-#;
-(class package ,local-class extends Local-Proxy implements ,stub-interface
-  (method override (stub-reference self)
-    (reify-reference ,stub-interface))
-  ,@values-method
-  ,@(queue-list locals))
+(define (register-local-proxy-class locator new)
+  (table-set! local-proxy-classes locator new))
 
 
-#;
-(class package ,remote-class extends Remote-Proxy implements ,stub-interface
-  (method override (stub-reference self)
-    (reify-reference ,stub-interface))
-  ,@(queue-list remotes))
+(define (local-proxy-class locator)
+  (or (table-ref local-proxy-classes locator #f)
+      (error "Unknow local proxy class" locator)))
 
 
-#;
-(method override (break-thread self rest)
-  ((apply (~ ,name object) rest)))
+;;;
+;;;; Remote
+;;;
 
 
-#;
-(method override (break-thread self rest)
-  (apply post-remote 'break-thread self rest))
+(define remote-proxy-classes
+  (make-table))
+
+
+(define (register-remote-proxy-class locator new)
+  (table-set! remote-proxy-classes locator new))
+
+
+(define (remote-proxy-class locator)
+  (or (table-ref remote-proxy-classes locator #f)
+      (error "Unknow remote proxy class" locator)))
 
 
 ;;;
@@ -78,74 +76,6 @@
 ;;;
 
 
-(define (register-proxy-find-object register-proxy name)
-  ((dispatch register-proxy 'find-object) register-proxy name))
-
-
-(define (register-proxy-register-object register-proxy name object . rest)
-  (apply (dispatch register-proxy 'register-object) register-proxy name object rest))
-
-
-(define-type-of-local-proxy register-local-proxy)
-
-
-(define (new-register-local-proxy presence)
-  (let ((register-local-proxy
-          (make-register-local-proxy
-            'register-local-proxy
-            #f
-            presence
-            (new-register))))
-    (setup-register-local-proxy register-local-proxy)
-    register-local-proxy))
-
-
-(define (setup-register-local-proxy register-local-proxy)
-  (setup-object register-local-proxy)
-  (add-method register-local-proxy 'stub (lambda (register-local-proxy) 'register))
-  (add-method register-local-proxy 'find-object register-local-proxy-find-object)
-  (add-method register-local-proxy 'register-object register-local-proxy-register-object))
-
-
-(define (register-local-proxy-find-object register-local-proxy name)
-  (register-find-object (local-proxy-object register-local-proxy) name))
-
-
-(define (register-local-proxy-register-object register-local-proxy name object . rest)
-  (apply register-register-object (local-proxy-object register-local-proxy) name object rest))
-
-
-(define-type-of-remote-proxy register-remote-proxy)
-
-
-(define (new-register-remote-proxy presence ior values)
-  (let ((register-remote-proxy
-          (make-register-remote-proxy
-            'register-remote-proxy
-            #f
-            presence
-            ior
-            values)))
-    (setup-register-remote-proxy register-remote-proxy)
-    register-remote-proxy))
-
-
-(define (setup-register-remote-proxy register-remote-proxy)
-  (setup-object register-remote-proxy)
-  (add-method register-remote-proxy 'stub (lambda (register-remote-proxy) 'register))
-  (add-method register-remote-proxy 'find-object register-remote-proxy-find-object)
-  (add-method register-remote-proxy 'register-object register-remote-proxy-register-object))
-
-
-(define (register-remote-proxy-find-object register-remote-proxy name)
-  (call-remote 'find-object register-remote-proxy name))
-
-
-(define (register-remote-proxy-register-object register-remote-proxy name object . rest)
-  (apply call-remote 'register-object name object rest))
-
-
-#;
 (remotable-stub register
   
   
@@ -163,61 +93,7 @@
 ;;;
 
 
-(define (debuggee-process-proxy-foo debuggee-process-proxy)
-  ((dispatch debuggee-process-proxy 'foo) debuggee-process-proxy))
-
-
-(define-type-of-local-proxy debuggee-process-local-proxy)
-
-
-(define (new-debuggee-process-local-proxy presence object)
-  (let ((debuggee-process-local-proxy
-          (make-debuggee-process-local-proxy
-            'debuggee-process-local-proxy
-            #f
-            presence
-            object)))
-    (setup-debuggee-process-local-proxy debuggee-process-local-proxy)
-    debuggee-process-local-proxy))
-
-
-(define (setup-debuggee-process-local-proxy debuggee-process-local-proxy)
-  (setup-object debuggee-process-local-proxy)
-  (add-method debuggee-process-local-proxy 'stub (lambda (debuggee-process-local-proxy) 'debuggee-process))
-  (add-method debuggee-process-local-proxy 'foo debuggee-process-local-proxy-foo))
-
-
-(define (debuggee-process-local-proxy-foo debuggee-process-local-proxy)
-  'local)
-
-
-(define-type-of-remote-proxy debuggee-process-remote-proxy)
-
-
-(define (new-debuggee-process-remote-proxy presence ior values)
-  (let ((debuggee-process-remote-proxy
-          (make-debuggee-process-remote-proxy
-            'debuggee-process-remote-proxy
-            #f
-            presence
-            ior
-            values)))
-    (setup-debuggee-process-remote-proxy debuggee-process-remote-proxy)
-    debuggee-process-remote-proxy))
-
-
-(define (setup-debuggee-process-remote-proxy debuggee-process-remote-proxy)
-  (setup-object debuggee-process-remote-proxy)
-  (add-method debuggee-process-remote-proxy 'stub (lambda (debuggee-process-remote-proxy) 'debuggee-process))
-  (add-method debuggee-process-remote-proxy 'foo debuggee-process-remote-proxy-foo))
-
-
-(define (debuggee-process-remote-proxy-foo debuggee-process-remote-proxy)
-  'remote)
-
-
-#;
-(remotable-stub Debuggee-Process
+(remotable-stub debuggee-process
   
   
   (method public call value (get-id self))
@@ -307,34 +183,12 @@
 
 
 (define (unmarshall-object class content)
+  ;; quick test
+  (if (equal? class '(module-public jazz.presence IOR))
+      (unmarshall-ior content)
   (case class
     ((version) (unmarshall-version content))
     ((ior) (unmarshall-ior content))
     ((debuggee-process-local-proxy) (unmarshall-proxy content))
     ((debuggee-process-remote-proxy) (unmarshall-proxy content))
-    (else (error "Unable to unmarshall" class))))
-
-
-;;;
-;;;; Local
-;;;
-
-
-;; quicky
-(define (local-class stub-interface)
-  (case stub-interface
-    ((register) new-register-local-proxy)
-    (else (error "Unknow local stub" stub-interface))))
-
-
-;;;
-;;;; Remote
-;;;
-
-
-;; quicky
-(define (remote-class stub-interface)
-  (case stub-interface
-    ((register) new-register-remote-proxy)
-    ((debuggee-process) new-debuggee-process-remote-proxy)
-    (else (error "Unknow remote stub" stub-interface))))
+    (else (error "Unable to unmarshall" class)))))

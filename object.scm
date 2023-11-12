@@ -36,7 +36,6 @@
 
 
 (define-type object
-  id: 07E95BD3-703D-4F6C-99D9-70EFF3A8CD16
   extender: define-type-of-object
   class
   methods)
