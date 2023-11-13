@@ -56,12 +56,12 @@
 
 
 (define (debuggee-restart-get-id debuggee-restart)
-  (object->serial restart))
+  (object->serial (debuggee-restart-restart debuggee-restart)))
 
 
 (define (debuggee-restart-get-name debuggee-restart)
-  (get-name restart))
+  (restart-name (debuggee-restart-restart debuggee-restart)))
 
 
 (define (debuggee-restart-get-message debuggee-restart)
-  (get-message restart))
+  (restart-message (debuggee-restart-restart debuggee-restart)))

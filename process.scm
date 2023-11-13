@@ -155,8 +155,8 @@
 
 (define (debuggee-process-restart-stop debuggee-process restart-proxy)
   (let ((debuggee-restart (local-proxy-object restart-proxy)))
-    (let ((thread (get-thread debuggee-restart))
-          (restart (get-restart debuggee-restart)))
+    (let ((thread (debuggee-restart-thread debuggee-restart))
+          (restart (debuggee-restart-restart debuggee-restart)))
       (thread-post thread 'restart-stop
         (lambda ()
           (invoke-restart restart))))))
@@ -213,8 +213,8 @@
 
 (define (debuggee-process-continue-stop debuggee-process stop-proxy)
   (let ((stop (local-proxy-object stop-proxy)))
-    (let ((thread (get-thread stop))
-          (continuation (get-continuation stop)))
+    (let ((thread (debuggee-stop-thread stop))
+          (continuation (debuggee-stop-continuation stop)))
       (thread-post thread 'continue-stop
         (lambda ()
           (continuation-return continuation #f))))))
@@ -222,8 +222,8 @@
 
 (define (debuggee-process-step-stop debuggee-process stop-proxy command)
   (let ((stop (local-proxy-object stop-proxy)))
-    (let ((thread (get-thread stop))
-          (stepper (get-stepper stop)))
+    (let ((thread (debuggee-stop-thread stop))
+          (stepper (debuggee-stop-stepper stop)))
       (thread-post thread 'step-stop
         (lambda ()
           (stepper command))))))

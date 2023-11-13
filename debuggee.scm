@@ -87,8 +87,8 @@
   (console-port-getter-set! console-port-getter)
   (console-clear-set! console-clear)
   (debugger-proxy-attach-process controller-debugger local-process focus?)
-  ;(set-exception-debugger jazz-exception-debugger)
-  ;(set-exception-hook exception-debugger-hook)
+  (set-exception-debugger jazz-exception-debugger)
+  (set-exception-hook exception-debugger-hook)
   (add-exit-job! detach-from-controller))
 
 
@@ -260,7 +260,7 @@
 
 (define (with-current-loop thunk)
   (let ((current (current-loop)))
-    (let ((loop (new-loop (if current (+ (get-level current) 1) 0))))
+    (let ((loop (new-loop (if current (+ (loop-level current) 1) 0))))
       (parameterize ((current-loop loop))
         (thunk)))))
 
@@ -428,12 +428,9 @@
 
 (define (jazz-exception-debugger exc)
   (declare (proper-tail-calls))
-  (let ((cont (get-exception-context exc)))
-    (if cont
-        (jazz-handle-exception exc cont)
-      (continuation-capture
-        (lambda (cont)
-          (jazz-handle-exception exc cont))))))
+  (continuation-capture
+    (lambda (cont)
+      (jazz-handle-exception exc cont))))
 
 
 (define (with-jazz-exception-debugger thunk)
@@ -442,17 +439,11 @@
 
 
 (define (jazz-handle-exception exc cont)
-  (let ((debugger (get-controller-debugger))
-        (use (use-debugger?)))
-    (if (or (not debugger) (not use))
-        (invoke-exception-hook system-exception-hook exc)
-      (with-system-exception-debugger
-        (lambda ()
-          (when (eq? use 'once)
-            (use-debugger? #f))
-          (let ((reason (exception-reason exc))
-                (detail (exception-detail exc)))
-            (invoke-debugger 'exception reason detail exc cont)))))))
+  (with-system-exception-debugger
+    (lambda ()
+      (let ((reason (exception-reason exc))
+            (detail (exception-detail exc)))
+        (invoke-debugger 'exception reason detail exc cont)))))
 
 
 (define (jazz-debugger?)
@@ -629,7 +620,7 @@
       (define (eval-in-context context frame evaluator expr)
         (define (local-names variables)
           (map (lambda (var)
-                 (string->symbol (second (car var))))
+                 (string->symbol (cadr (car var))))
                variables))
         
         (let ((local-variables (if frame (get-variables frame :lexical) '())))
@@ -672,7 +663,7 @@
                 (when (> (length restarts) 1)
                   (newline port)
                   ;; skip the current resume-loop restart
-                  (let ((restart (second restarts)))
+                  (let ((restart (cadr restarts)))
                     (invoke-restart restart))))))
         (let ((result
                 (thread-call thread 'console-eval
@@ -791,7 +782,7 @@
 (define (invoke-debugger kind reason detail exc continuation #!key (locat #f) (stepper #f))
   (define (compute-restarts thread)
     (map (lambda (restart)
-           (new Debuggee-Restart-Local-Proxy (require-presence 'debugging) (new Jazz-Debuggee-Restart thread restart)))
+           (new-debuggee-restart-local-proxy (require-presence 'debugging) (new-debuggee-restart thread restart)))
          (current-restarts)))
   
   (let ((thread (current-thread))

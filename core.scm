@@ -174,6 +174,21 @@
 ;;;
 
 
+(define (exception-reason exc)
+  (let ((output (open-output-string)))
+    (display-exception exc output)
+    (let ((str (get-output-string output)))
+      (let ((len (string-length str)))
+        (if (and (fx> len 0)
+                 (eqv? (string-ref str (fx- len 1)) #\newline))
+            (substring str 0 (fx- len 1))
+          str)))))
+
+
+(define (exception-detail exc)
+  #f)
+
+
 (define (exception-location exc cont)
   (##exception->locat exc cont))
 
@@ -282,3 +297,12 @@
 
 (define (invoke-exception-hook hook exc)
   (hook exc thread-end-with-uncaught-exception!))
+
+
+;;;
+;;;; System
+;;;
+
+
+(define (system-exception-hook exc other)
+  (repl-exception-handler-hook exc other))

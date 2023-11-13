@@ -188,7 +188,5 @@
     
     (let ((rest (cdr (desourcify form-src))))
       (sourcify-deep-if
-        (let ((expansion (expand-remotable-stub rest)))
-          ;(pp expansion)
-          expansion)
+        (expand-remotable-stub rest)
         form-src))))

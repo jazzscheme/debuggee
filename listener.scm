@@ -91,7 +91,6 @@
                          (thread-start!
                            (make-thread
                              (lambda ()
-                               (pp 'accept-connection)
                                (listener-accept-connection listener port))
                              'presence-accepted))
                          (loop))))

@@ -580,6 +580,45 @@
   (get-procedure-name (##continuation-creator cont)))
 
 
+(define (continuation-stack cont #!key (dynamic-environment? #f) (lexical-environment? #f) (identifiers? #f) (locations? #f) (depth #f))
+  (define (package-name name)
+    (if (and identifiers? (symbol? name))
+        (reference-name name)
+      name))
+  
+  (define (package-variable variable)
+    (bind (name value mutable?) variable
+      (list name value)))
+  
+  (define (package-variables variables)
+    (map package-variable variables))
+  
+  (let ((stack (get-continuation-stack cont depth)))
+    (map (lambda (cont)
+           (let ((name (package-name (get-continuation-name cont))))
+             (cond ((and (not dynamic-environment?) (not lexical-environment?))
+                    (if (not locations?)
+                        name
+                      (cons name
+                            (let ((location (get-continuation-location cont)))
+                              (if (not location)
+                                  (list #f #f)
+                                (bind (container line col) location
+                                  (list line col)))))))
+                   ((not dynamic-environment?)
+                    (cons name (package-variables (get-continuation-lexical-environment cont))))
+                   (else
+                    (cons name (append (package-variables (get-continuation-dynamic-environment cont))
+                                       (package-variables (get-continuation-lexical-environment cont))))))))
+         stack)))
+
+
+(define (execution-stack #!key (dynamic-environment? #f) (lexical-environment? #f) (identifiers? #f) (locations? #f) (depth #f))
+  (continuation-capture
+    (lambda (cont)
+      (continuation-stack cont dynamic-environment?: dynamic-environment? lexical-environment?: lexical-environment? identifiers?: identifiers? locations?: locations? depth: depth))))
+
+
 ;;;
 ;;;; I/O
 ;;;

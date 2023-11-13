@@ -13,11 +13,10 @@
 (current-process-title-set! "Welcome to Scheme!")
 
 (define (yo)
-  14243523452)
+  12)
 
 (define (foo x)
   (let ((z (+ x x)))
-    (thread-sleep! +inf.0)
     (break)
     z))
 
@@ -29,6 +28,7 @@
   (goo (+ z 3))
   5)
 
+#;
 (thread-start!
   (make-thread
     (lambda ()
