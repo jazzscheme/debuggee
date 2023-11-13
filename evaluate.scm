@@ -36,26 +36,6 @@
 
 
 (define (evaluate-forms syntax str container line col evaluation-mode #!key (file #f) (readtable #f) (evaluate? #t) (scripting? #f))
-  (define (present result)
-    (object->string result)
-    #;
-    (when (specified? result)
-      (let ((values (call-with-values (lambda () result) list)))
-        (for-each (lambda (value)
-                    (format :console "\2$\3\2color Ochre {s}\3{%}" value))
-                  values))
-      (display-prompt (current-console-port) (current-repl-level))
-      (force-output (current-console-port))))
-  
-  (let ((forms (call-with-input-string str
-                 (lambda (port)
-                   (read-all port)))))
-    (let ((expression (cons 'begin forms)))
-      (present (eval expression)))))
-
-
-#; ;; todo
-(define (evaluate-forms syntax str container line col evaluation-mode #!key (file #f) (readtable #f) (evaluate? #t) (scripting? #f))
   (define (toplevel-form? expr)
     (and (pair? (source-code expr))
          (memq (source-code (car (source-code expr))) '(unit module script))))
@@ -69,14 +49,13 @@
           (values kind first 'public)))))
   
   (define (present result)
-    (unless (eq? evaluation-mode 'live)
-      (when (specified? result)
-        (let ((values (call-with-values (lambda () result) list)))
-          (for-each (lambda (value)
-                      (format :console "\2$\3\2color Ochre {s}\3{%}" value))
-                    values))
-        (display-prompt (current-console-port) (current-repl-level))
-        (force-output (current-console-port)))))
+    (when (specified? result)
+      (let ((values (call-with-values (lambda () result) list)))
+        (for-each (lambda (value)
+                    (format ':console "\2$\3\2color Ochre {s}\3{%}" value))
+                  values))
+      (display-prompt (current-console-port) (current-repl-level))
+      (force-output (current-console-port))))
   
   (let ((forms ;; hack around the worker giving me a -1 line that was
                ;; probably a hack around gambit's first line being 1!?
@@ -93,14 +72,8 @@
       (if (and (eq? syntax 'jazz) (toplevel-form? first) (null? (cdr forms)))
           (let ((expression first))
             (receive (kind unit-name access) (parse-toplevel first)
-              (let ((effective-name (if (eq? kind 'script) (gensym) unit-name)))
-                #; ;; jazz
-                  (unless (or (eq? kind 'script) scripting?)
-                    (when evaluate?
-                      (load-unit effective-name))
-                    (outline-unit effective-name))
-                  (if (not evaluate?)
-                      (expand-form expression)
-                    (present (eval expression))))))
+              (if (not evaluate?)
+                  (expand-form expression)
+                (present (eval expression)))))
           (let ((expression (cons 'begin forms)))
             (present (eval expression)))))))

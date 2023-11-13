@@ -269,7 +269,7 @@
 
 
 (define (with-printer printer proc)
-  (if (eq? printer :string)
+  (if (eq? printer ':string)
       (let ((output (open-output-string)))
         (proc output)
         (get-output-string output))
@@ -777,11 +777,6 @@
 
 
 (define (format . rest)
-  (define (parse-format rest proc)
-    (if (string? (car rest))
-        (proc ':string (car rest) (cdr rest))
-      (proc (car rest) (cadr rest) (cddr rest))))
-  
   (define (format-to output fmt-string arguments)
     (let ((control (open-input-string fmt-string))
           (done? #f))
@@ -824,15 +819,16 @@
                           (write-char c output)))
                    (iter)))))))
   
-  (parse-format rest
-    (lambda (port fmt-string arguments)
-      (case port
-        ((:string)
-         (let ((output (open-output-string)))
-           (format-to output fmt-string arguments)
-           (get-output-string output)))
-        (else
-         (format-to port fmt-string arguments))))))
+  (define (parse-format proc)
+    (if (string? (car rest))
+        (proc ':string (car rest) (cdr rest))
+      (proc (car rest) (cadr rest) (cddr rest))))
+  
+  (parse-format
+    (lambda (destination fmt-string arguments)
+      (with-printer destination
+        (lambda (output)
+          (format-to output fmt-string arguments))))))
 
 
 (define system-format

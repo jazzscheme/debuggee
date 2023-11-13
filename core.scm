@@ -150,7 +150,7 @@
   (##input-port-column-set! port col))
 
 
-(define (jazz:read-source-all port #!optional (container #f) (line #f) (col #f))
+(define (read-source-all port #!optional (container #f) (line #f) (col #f))
   (if container
       (input-port-names-set! port (lambda (port) container)))
   (if line
@@ -159,14 +159,14 @@
       (input-port-column-set! port (fx+ col 1)))
   
   (let ((begin-vector
-          (read-all-as-a-begin-expr-from-port
+          (##read-all-as-a-begin-expr-from-port
             port
             (current-readtable)
-            jazz:wrap-datum&
-            jazz:unwrap-datum&
-            (jazz:readtable-start-syntax (current-readtable))
+            ##wrap-datum
+            ##unwrap-datum
+            (readtable-start-syntax (current-readtable))
             #f)))
-    (cdr (source-code (vector-ref begin-vector 1)))))
+    (cdr (##source-code (vector-ref begin-vector 1)))))
 
 
 ;;;
