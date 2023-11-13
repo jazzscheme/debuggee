@@ -87,8 +87,12 @@
         object))))
 
 
-(define (local-proxy-proxy-values local-proxy)
-  '())
+(define (proxy-live? proxy)
+  ((dispatch proxy 'live?) proxy))
+
+
+(define (local-proxy-values local-proxy)
+  ((dispatch local-proxy 'values) local-proxy))
 
 
 (define (local-proxy-live? local-proxy)

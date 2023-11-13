@@ -101,6 +101,7 @@
   (method public call value (get-traits self))
   (method public call value (get-icon self))
   (method public send (detach-process self))
+  (method public send (detach-process-quicky self debugger-proxy))
   (method public post (reload-process self))
   (method public post (attach-to-debugger self debugger-proxy debugger-cookie))
   (method public post (quit-process self))
@@ -139,12 +140,75 @@
 
 
 ;;;
+;;;; Debuggee-Thread
+;;;
+
+
+(remotable-stub debuggee-thread
+  
+  
+  (method public call value (get-id self))
+  (method public call value (get-name self))
+  (method public call value (get-state self))
+  (method public call value (get-priority self))
+  (method public call value (get-debugged-continuation? self))
+  (method public call (get-stops self))
+  (method public send (set-repl-frame self frame)))
+
+
+;;;
+;;;; Debuggee-Restart
+;;;
+
+
+(remotable-stub debuggee-restart
+  
+  
+  (method public call value (get-id self))
+  (method public call value (get-name self))
+  (method public call value (get-message self)))
+
+
+;;;
+;;;; Debuggee-Stop
+;;;
+
+
+(remotable-stub debuggee-stop
+  
+  
+  (method public call value (get-id self))
+  (method public call value (get-kind self))
+  (method public call value (get-reason self))
+  (method public call value (get-location self))
+  (method public call (get-detail self))
+  (method public call (get-restarts self))
+  (method public call (get-frames self)))
+
+
+;;;
+;;;; Debuggee-Frame
+;;;
+
+
+(remotable-stub debuggee-frame
+  
+  
+  (method public call value (get-id self))
+  (method public call value (get-continuation self))
+  (method public call value (get-name self))
+  (method public call value (get-interpreted? self))
+  (method public call value (get-hidden? self))
+  (method public call (get-location self))
+  (method public call (get-variables self kind)))
+
+
+;;;
 ;;;; Debugger
 ;;;
 
 
-#;
-(remotable-stub Debugger
+(remotable-stub debugger
   
   
   (method public send (attach-process self process focus?))
@@ -177,8 +241,18 @@
   (case class
     ((version) (marshall-version obj))
     ((ior) (marshall-ior obj))
-    ((debuggee-process-local-proxy) (marshall-local-proxy obj))
-    ((debuggee-process-remote-proxy) (marshall-remote-proxy obj))
+    ((debuggee-process-local-proxy
+      debuggee-thread-local-proxy
+      debuggee-restart-local-proxy
+      debuggee-stop-local-proxy
+      debuggee-frame-local-proxy)
+     (marshall-local-proxy obj))
+    ((debuggee-process-remote-proxy
+      debuggee-thread-remote-proxy
+      debuggee-restart-remote-proxy
+      debuggee-stop-remote-proxy
+      debuggee-frame-remote-proxy)
+     (marshall-remote-proxy obj))
     (else (error "Unable to marshall" class))))
 
 
@@ -189,6 +263,16 @@
   (case class
     ((version) (unmarshall-version content))
     ((ior) (unmarshall-ior content))
-    ((debuggee-process-local-proxy) (unmarshall-proxy content))
-    ((debuggee-process-remote-proxy) (unmarshall-proxy content))
+    ((debuggee-process-local-proxy
+      debuggee-thread-local-proxy
+      debuggee-restart-local-proxy
+      debuggee-stop-local-proxy
+      debuggee-frame-local-proxy)
+     (unmarshall-proxy content))
+    ((debuggee-process-remote-proxy
+      debuggee-thread-remote-proxy
+      debuggee-restart-remote-proxy
+      debuggee-stop-remote-proxy
+      debuggee-frame-remote-proxy)
+     (unmarshall-proxy content))
     (else (error "Unable to unmarshall" class)))))

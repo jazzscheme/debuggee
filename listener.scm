@@ -68,8 +68,8 @@
 ;;;
 
 
-(define (listener-start listener)
-  (listener-start-listener listener))
+(define (listener-start listener name)
+  (listener-start-listener listener name))
 
 
 (define (listener-stop listener)
@@ -77,7 +77,7 @@
   (listener-server-thread-set! listener #f))
 
 
-(define (listener-start-listener listener)
+(define (listener-start-listener listener name)
   (let ((host (listener-host listener))
         (service (listener-service listener))
         (alternate-service (listener-alternate-service listener)))
@@ -92,8 +92,10 @@
                            (make-thread
                              (lambda ()
                                (pp 'accept-connection)
-                               (listener-accept-connection listener port))))
-                         (loop)))))))
+                               (listener-accept-connection listener port))
+                             'presence-accepted))
+                         (loop))))
+                name)))
         (thread-start! thread)
         (listener-server-thread-set! listener thread)))))
 

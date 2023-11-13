@@ -36,6 +36,30 @@
 
 
 ;;;
+;;;; Atom
+;;;
+
+
+(define (atom? value)
+  (or (null? value)
+      (boolean? value)
+      (char? value)
+      (string? value)
+      (symbol? value)
+      (keyword? value)
+      (number? value)))
+
+
+;;;
+;;;; Boolean
+;;;
+
+
+(define (boolean obj)
+  (if obj #t #f))
+
+
+;;;
 ;;;; Serial
 ;;;
 
@@ -46,6 +70,29 @@
 
 (define (serial->object number)
   (serial-number->object number))
+
+
+;;;
+;;;; Message
+;;;
+
+
+(define (system-message text . rest)
+  (let ((port (console-port)))
+    (display text port)
+    (newline port)))
+
+
+;;;
+;;;; Number
+;;;
+
+
+(define (naturals from to)
+  (let iter ((n (fx- to 1)) (lst '()))
+       (if (fx< n from)
+           lst
+         (iter (fx- n 1) (cons n lst)))))
 
 
 ;;;
@@ -76,6 +123,28 @@
               (iter (cdr rest) (+ rank 1)))))))
 
 
+(define (find-if predicate lst)
+  (declare (proper-tail-calls))
+  (let iter ((scan lst))
+    (if (null? scan)
+        #f
+      (let ((value (car scan)))
+        (if (predicate value)
+            value
+          (iter (cdr scan)))))))
+
+
+(define (collect-if predicate lst)
+  (declare (proper-tail-calls))
+  (let iter ((scan lst))
+    (if (not (null? scan))
+        (let ((value (car scan)))
+          (if (predicate value)
+              (cons value (iter (cdr scan)))
+            (iter (cdr scan))))
+      '())))
+
+
 ;;;
 ;;;; String
 ;;;
@@ -98,6 +167,32 @@
 
 
 ;;;
+;;;; Table
+;;;
+
+
+(define (table-clear table key)
+  (table-set! table key))
+
+
+(define (table-keys/values table)
+  (let ((list '()))
+    (iterate-table table
+      (lambda (key value)
+        (set! list (cons (cons key value) list))))
+    list))
+
+
+;; safe versions of table-for-each and table-search
+
+
+(define (iterate-table table proc)
+  (for-each (lambda (pair)
+              (proc (car pair) (cdr pair)))
+            (table->list table)))
+
+
+;;;
 ;;;; Unspecified
 ;;;
 
@@ -115,8 +210,194 @@
 
 
 ;;;
+;;;; Time
+;;;
+
+
+(define current-seconds
+  ##current-time-point)
+
+
+(define systime->seconds
+  time->seconds)
+
+(define seconds->systime
+  seconds->time)
+
+
+;;;
+;;;; Timeout
+;;;
+
+
+;; copied from _repl
+(define (write-timeout to moment port)
+  (write-string " " port)
+  (let* ((expiry (fl- to moment))
+         (e (fl/ (flround (fl* 10.0 expiry)) 10.0)))
+    (write (if (integer? e) (inexact->exact e) e) port))
+  (write-string "s" port))
+
+
+;;;
+;;;; Output
+;;;
+
+
+(define *console-clear*
+  #f)
+
+(define (console-clear-set! clear)
+  (set! *console-clear* clear))
+
+
+(define (terminal-port)
+  (console-port))
+
+
+;;;
+;;;; Printers
+;;;
+
+
+(define *printers*
+  (make-table test: eq?))
+
+
+(define (register-printer name proc)
+  (table-set! *printers* name proc))
+
+
+(define (with-printer printer proc)
+  (if (eq? printer :string)
+      (let ((output (open-output-string)))
+        (proc output)
+        (get-output-string output))
+    (proc
+      (let ((printer-proc (table-ref *printers* printer #f)))
+        (if printer-proc
+            (printer-proc)
+          printer)))))
+
+
+(register-printer ':terminal terminal-port)
+
+
+;;;
+;;;; Console
+;;;
+
+
+(define *console-port-getter*
+  #f)
+
+
+(define (console-port-getter-set! getter)
+  (set! *console-port-getter* getter))
+
+
+(define (current-console-port)
+  (if (not *console-port-getter*)
+      (terminal-port)
+    (*console-port-getter*)))
+
+
+(define (attached-console-port)
+  (if (not *console-port-getter*)
+      (and (terminal-available?) (terminal-port))
+    (*console-port-getter*)))
+
+
+(define (console-input-port)
+  (current-console-port))
+
+(define (console-output-port)
+  (current-console-port))
+
+
+(define (force-console)
+  (force-output (current-console-port)))
+
+
+(register-printer ':console current-console-port)
+
+
+;;;
+;;;; Restart
+;;;
+
+
+(define-type-of-object restart
+  name
+  message
+  handler)
+
+
+(define (new-restart name message handler)
+  (let ((restart
+          (make-restart
+            'restart
+            #f
+            name
+            message
+            handler)))
+    (setup-object restart)
+    restart))
+
+
+(define current-restarts
+  (make-parameter '()))
+
+
+(define (with-restart-handler name message handler thunk)
+  (parameterize ((current-restarts (cons (new-restart name message handler) (current-restarts))))
+    (thunk)))
+
+
+(define (with-restart-catcher name message thunk)
+  (continuation-capture
+    (lambda (catcher-cont)
+      (with-restart-handler name message
+        (lambda rest
+          (continuation-return catcher-cont
+            (if (not (null? rest))
+                (car rest)
+              #f)))
+        thunk))))
+
+
+(define (find-restart name)
+  (find-if (lambda (restart)
+             (eq? (restart-name restart) name))
+           (current-restarts)))
+
+
+(define (find-restarts name)
+  (collect-if (lambda (restart)
+                (eq? (restart-name restart) name))
+              (current-restarts)))
+
+
+(define (invoke-restart restart . rest)
+  (let ((handler (restart-handler restart)))
+    (apply handler rest)))
+
+
+;;;
 ;;;; Thread
 ;;;
+
+
+(define primordial-thread-object
+  (current-thread))
+
+
+(define (primordial-thread)
+  primordial-thread-object)
+
+
+(define (primordial-thread?)
+  (eq? (current-thread) (primordial-thread)))
 
 
 (define pristine-thread-continuation
@@ -129,13 +410,192 @@
               cont)))))))
 
 
+(define (thread-exit)
+  (continuation-return pristine-thread-continuation #f))
+
+
 (define (exit-thread thread)
   (thread-int! thread thread-exit))
+
+
+(define (thread-group-all-threads thread-group)
+  (apply append (thread-group->thread-list thread-group)
+    (map thread-group-all-threads (thread-group->thread-group-list thread-group))))
+
+
+(define (top-threads)
+  (thread-group-all-threads (thread-thread-group (primordial-thread))))
+
+
+(define (present-thread-state state)
+  (let ((port (open-output-string))
+        (moment (current-seconds)))
+    (cond ((thread-state-uninitialized? state)
+           (system-format port "Uninitialized"))
+          ((thread-state-initialized? state)
+           (system-format port "Initialized"))
+          ((thread-state-normally-terminated? state)
+           (system-format port "Normally terminated"))
+          ((thread-state-abnormally-terminated? state)
+           (system-format port "Abnormally terminated"))
+          ((thread-state-running? state)
+           (system-format port "Running"))
+          ((thread-state-waiting? state)
+           (let ((wf (thread-state-waiting-for state))
+                 (to (thread-state-waiting-timeout state)))
+             (cond (wf
+                    (system-format port "Waiting ")
+                    (write wf port)
+                    (if (mutex? wf)
+                        (begin
+                          (write-string " " port)
+                          (write (mutex-state wf) port)))
+                    (if to
+                        (write-timeout (systime->seconds to) moment port)))
+                   (to
+                    (system-format port "Sleeping")
+                    (write-timeout (systime->seconds to) moment port)))))
+          (else
+           (write state port)))
+    
+    (get-output-string port)))
+
+
+(define (safe-present-object object #!optional (max-width #f))
+  (with-exception-catcher
+    (lambda (exc)
+      ;; add the exception reason somehow!?
+      (let ((class-string
+              (with-exception-catcher
+                (lambda (exc)
+                  "")
+                (lambda ()
+                  (string-append " " (symbol->string (if (object? object) (object-class object) '<unknown>)))))))
+        (string-append "#<unprintable" class-string " #" (number->string (object->serial object)) ">")))
+    (lambda ()
+      (if max-width
+          (object->string object max-width)
+        (object->string object)))))
+
+
+(define thread-queues
+  (make-table test: eq? weak-keys: #t))
+
+(define thread-queues-mutex
+  (make-mutex 'thread-queues))
+
+
+(define (thread-has-port? thread)
+  (table-ref thread-queues thread #f))
+
+
+(define (get-thread-queue thread)
+  (mutex-lock! thread-queues-mutex)
+  (let ((queue (or (table-ref thread-queues thread #f)
+                   (let ((queue (open-vector)))
+                     (table-set! thread-queues thread queue)
+                     queue))))
+    (mutex-unlock! thread-queues-mutex)
+    queue))
+
+
+(define (thread-write-message thread thunk)
+  (let ((thread-queue (get-thread-queue thread)))
+    (write thunk thread-queue)
+    (force-output thread-queue)))
+
+
+(define (thread-read-message #!key (timeout +inf.0))
+  (let ((thread-queue (get-thread-queue (current-thread))))
+    (input-port-timeout-set! thread-queue timeout)
+    (read thread-queue)))
+
+
+(define (thread-write thread thunk)
+  (thread-write-message thread thunk))
+
+
+(define (thread-read #!key (timeout +inf.0))
+  (thread-read-message timeout: timeout))
+
+
+(define (thread-process #!key (timeout +inf.0))
+  (let ((thunk (thread-read-message timeout: timeout)))
+    (when (not (eof-object? thunk))
+      (thunk))))
+
+
+(define (thread-post thread name thunk)
+  ;; posts are never synchronous
+  (thread-write thread thunk))
+
+
+(define thread-call-noresult
+  (list 'thread-call-noresult))
+
+
+(define (thread-call-result? result)
+  (not (eq? result thread-call-noresult)))
+
+
+(define (thread-call thread name thunk)
+  (if (eq? thread (current-thread))
+      (thunk)
+    (let ((mutex (make-mutex name)))
+      (mutex-lock! mutex)
+      (mutex-specific-set! mutex thread-call-noresult)
+      (thread-write thread
+        (lambda ()
+          (dynamic-wind
+            (lambda ()
+              #f)
+            (lambda ()
+              (mutex-specific-set! mutex (thunk)))
+            (lambda ()
+              (mutex-unlock! mutex)))))
+      (mutex-lock! mutex)
+      (mutex-unlock! mutex)
+      (mutex-specific mutex))))
+
+
+;;;
+;;;; Stack
+;;;
+
+
+(define procedure-name-cache
+  (make-table test: eq?))
+
+
+(define (get-procedure-name procedure)
+  (if procedure
+      (or (table-ref procedure-name-cache procedure #f)
+          (let ((name (procedure-name procedure)))
+            (table-set! procedure-name-cache procedure name)
+            name))
+    "(interaction)"))
+
+
+(define (get-continuation-name cont)
+  (get-procedure-name (##continuation-creator cont)))
 
 
 ;;;
 ;;;; I/O
 ;;;
+
+
+(define (start-pump port proc)
+  (declare (proper-tail-calls))
+  (let ((size 1000))
+    (let ((buffer (make-string size)))
+      (let iterate ()
+        (let ((n (read-substring buffer 0 size port 1)))
+          (proc (if (> n 0)
+                    (substring buffer 0 n)
+                  ;; eof
+                  #f))
+          (iterate))))))
 
 
 (define (write-32-bit-integer n port)
@@ -261,3 +721,80 @@
                          (char->integer (string-ref s 1))
                          (char->integer (string-ref s 2))
                          (char->integer (string-ref s 3))))
+
+
+;;;
+;;;; Port
+;;;
+
+
+(define (write-string str port)
+  (##write-string str port))
+
+
+;;;
+;;;; Format
+;;;
+
+
+(define (format . rest)
+  (define (parse-format rest proc)
+    (if (string? (car rest))
+        (proc ':string (car rest) (cdr rest))
+      (proc (car rest) (cadr rest) (cddr rest))))
+  
+  (define (format-to output fmt-string arguments)
+    (let ((control (open-input-string fmt-string))
+          (done? #f))
+      (define (format-directive)
+        (let ((directive (read control)))
+          (read-char control)
+          (case directive
+            ((a)
+             (display (car arguments) output)
+             (set! arguments (cdr arguments)))
+            ((s)
+             (write (car arguments) output)
+             (set! arguments (cdr arguments)))
+            ((t)
+             (write (car arguments) output)
+             (set! arguments (cdr arguments)))
+            ((l)
+             (let ((first? #t))
+               (for-each (lambda (element)
+                           (if first?
+                               (set! first? #f)
+                             (display " " output))
+                           (display element output))
+                         (car arguments)))
+             (set! arguments (cdr arguments)))
+            ((%)
+             (newline output))
+            (else
+             (error "Unknown format directive" directive)))))
+      
+      (let iter ()
+           (let ((c (read-char control)))
+             (if (not (eof-object? c))
+                 (begin
+                   (cond ((eqv? c #\~)
+                          (write-char (read-char control) output))
+                         ((eqv? c #\{)
+                          (format-directive))
+                         (else
+                          (write-char c output)))
+                   (iter)))))))
+  
+  (parse-format rest
+    (lambda (port fmt-string arguments)
+      (case port
+        ((:string)
+         (let ((output (open-output-string)))
+           (format-to output fmt-string arguments)
+           (get-output-string output)))
+        (else
+         (format-to port fmt-string arguments))))))
+
+
+(define system-format
+  format)

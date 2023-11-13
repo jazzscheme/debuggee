@@ -132,7 +132,7 @@
                                                                    ,@(cond (rest `((apply (dispatch proxy ',name) proxy ,@positional ,rest)))
                                                                            (else `(((dispatch proxy ',name) proxy ,@positional))))))))
                             (if value-keyword
-                                (set! values (append values (list value-keyword `(,name self)))))
+                                (set! values (append values (list value-keyword `((dispatch local-proxy ',name) local-proxy)))))
                             (set! locals (append locals (list #; `(method override (,name self ,@parameters)
                                                                  ,@(cond (rest `((apply (~ ,name object) ,@positional ,rest) ,@local-result))
                                                                          (else `((,dispatch object ,@positional) ,@local-result))))
@@ -144,14 +144,12 @@
                                                                           `(proxy-value self ,value-keyword (lambda () ,call))
                                                                         call)))
                                                             `(add-method remote-proxy ',name (lambda (remote-proxy . rest)
-                                                                                               (apply call-remote ',name remote-proxy rest))))))))))
+                                                                                               (apply ,invoker ',name remote-proxy rest))))))))))
                     remotable-body)
-          (let ((values-method
+          (let ((values-list
                   (if (null? values)
-                      '()
-                    `((method override (proxy-values self)
-                        (append (list ,@values)
-                                (nextmethod self)))))))
+                      `'()
+                    `(list ,@values))))
             `(begin
                ,@defines
                ;; local
@@ -166,8 +164,9 @@
                    (,local-setup local-proxy)
                    local-proxy))
                (define (,local-setup local-proxy)
-                 (setup-object local-proxy)
+                 (setup-local-proxy local-proxy)
                  (add-method local-proxy 'stub (lambda (local-proxy) ',remotable-name))
+                 (add-method local-proxy 'values (lambda (local-proxy) ,values-list))
                  ,@locals)
                (register-local-proxy-class ',remotable-name ,local-new)
                ;; remote
@@ -182,7 +181,7 @@
                    (,remote-setup remote-proxy)
                    remote-proxy))
                (define (,remote-setup remote-proxy)
-                 (setup-object remote-proxy)
+                 (setup-remote-proxy remote-proxy)
                  (add-method remote-proxy 'stub (lambda (remote-proxy) ',remotable-name))
                  ,@remotes)
                (register-remote-proxy-class ',remotable-name ,remote-new))))))

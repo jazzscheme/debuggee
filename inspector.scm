@@ -2,7 +2,7 @@
 ;;;  JazzScheme
 ;;;==============
 ;;;
-;;;; Settings
+;;;; Inspector
 ;;;
 ;;;  The contents of this file are subject to the Mozilla Public License Version
 ;;;  1.1 (the "License"); you may not use this file except in compliance with
@@ -36,53 +36,47 @@
 
 
 ;;;
-;;;; Arguments
+;;;; Package
 ;;;
 
 
-(define (switch? arg)
-  (and (fx> (string-length arg) 0)
-       (eqv? (string-ref arg 0) #\-)))
+(define presentation-limit
+  256)
 
 
-(define (switch-name arg)
-  (let ((len (string-length arg)))
-    (let ((start (if (and (fx>= len 2) (equal? (substring arg 0 2) "--"))
-                     2
-                   1)))
-      (substring arg start len))))
+(define Unbound
+  (cons #f #f))
 
 
-(define (command-arguments)
-  (cdr (command-line)))
+(define (package-unbound)
+  Unbound)
 
 
-(define (command-argument name #!key (error? #t))
-  (let ((all (command-arguments)))
-    (let iter ((arguments all))
-         (if (null? arguments)
-             #f
-           (let ((arg (car arguments)))
-             (cond ((or (not (switch? arg))
-                        (null? (cdr arguments)))
-                    (if error?
-                        (error "Unable to parse command line" all)
-                      #f))
-                   ((equal? name (switch-name arg))
-                    (cadr arguments))
-                   (else
-                    (iter (cddr arguments)))))))))
-
-
-;;;
-;;;; Parameters
-;;;
-
-
-(define (parse-parameter arg arg-parser setting setting-parser #!optional (default (unspecified)))
-  (let ((arg-value (and arg (command-argument arg))))
-    (if arg-value
-        (arg-parser arg-value)
-      (if (specified? default)
-          default
-        (error "Mandatory parameter not found" arg setting)))))
+(define (package-info value #!key (kind ':value) (mutable? #t) (max-width #f))
+  (let ((max-width (or max-width presentation-limit)))
+    (define (more-value? value)
+      (cond ((pair? value) #t)
+            ((table? value) (> (table-length value) 0))
+            ((string? value) #f)
+            ;; todo ((sequence? value) (> (cardinality value) 0))
+            ;; todo ((closure? value) #t)
+            ;; todo ((object? value) (not-null? (get-instance-slots (class-of value))))
+            (else #f)))
+    
+    (define (truncate str)
+      (if (> (cardinality str) max-width)
+          (concatenate (subseq str 0 max-width) "...")
+        str))
+    
+    (let ((serial (object->serial value)))
+      (gc-protect value)
+      (let* ((unbound? (eq? value Unbound))
+             (raw? (eq? kind ':raw))
+             (class (if (object? value) (object-class value) '<unknown>))
+             (presentation (cond (unbound? "<unbound>")
+                                 (raw? (truncate (->string value)))
+                                 (else (safe-present-object value max-width))))
+             (more? (cond ((or unbound? raw?) #f)
+                          ((memq kind '(frame: context:)) #t)
+                          (else (more-value? value)))))
+        (list serial class presentation more? mutable? kind)))))

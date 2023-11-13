@@ -228,7 +228,7 @@
               (alternate-service (or alternate-service listen-alternate-service)))
           (let ((server (new-listener presence host: host service: service alternate-service: alternate-service)))
             (presence-listener-set! presence server)
-            (listener-start server))))))
+            (listener-start server 'presence-listener))))))
 
 
 (define (presence-stop-listener presence)
@@ -336,7 +336,7 @@
                                (begin
                                  (callee-garble-hack)
                                  (callee-garble-hack)
-                                 (debug-remote presence '<<< remote-title remote-uuid 'connect connection)))
+                                 (debug-remote presence '<<< remote-title remote-uuid 'connect)))
                            (presence-register-connection presence remote-uuid connection)
                            (let ((thread (make-thread
                                            (lambda ()
@@ -385,14 +385,14 @@
   (presence-with-connections-mutex presence
     (lambda ()
       (table-clear (presence-connections presence) remote-uuid)
-      (close connection))))
+      (connection-close connection))))
 
 
 (define (presence-disconnect-connection presence remote-uuid connection)
   (presence-with-connections-mutex presence
     (lambda ()
       (table-clear (presence-connections presence) remote-uuid)
-      (disconnect connection))))
+      (connection-disconnect connection))))
 
 
 ;;;
@@ -400,13 +400,19 @@
 ;;;
 
 
-(define (presence-debug-remote presence arrow remote-title remote-uuid action . rest)
-  (if debug-remote-seconds?
-      (format :terminal "{r precision: 6} " (current-seconds)))
-  (format :terminal "{?{a} ~}{a width: 9} {a}   {a}   {a width: 9} {a width: 8}   {a width: 7}   {l}{%}" purpose presence-title (uuid-prefix uuid) arrow (or remote-title "") (if remote-uuid (uuid-prefix remote-uuid) "") action rest))
+(define (debug-remote presence arrow remote-title remote-uuid action . rest)
+  (format (current-output-port) "{a} {a} {a}   {a}   {a} {a}   {a}   {l}{%}"
+    (presence-purpose presence)
+    presence-title
+    (uuid-prefix (presence-uuid presence))
+    arrow
+    (or remote-title "")
+    (if remote-uuid (uuid-prefix remote-uuid) "")
+    action
+    rest))
 
 
-(define (presence-debug-simplify presence obj)
+(define (debug-simplify presence obj)
   (cond ((not debug-remote-simplify?)
          obj)
         ((atom? obj)
@@ -414,7 +420,7 @@
         ((object? obj)
          (object-class obj))
         (else
-         (type->specifier (object-class obj)))))
+         (object->serial obj))))
 
 
 ;;;
@@ -470,9 +476,8 @@
   (setup-object connection))
 
 
-(define (connection-destroy connection)
-  (disconnect connection)
-  (nextmethod connection))
+(define (connection-close connection)
+  (connection-disconnect connection))
 
 
 (define (connection-disconnect connection)
@@ -482,7 +487,7 @@
       #f)
     (lambda ()
       (close-port port)))
-  (sever-invocations connection))
+  (connection-sever-invocations connection))
 
 
 (define (connection-print connection output readably)
@@ -530,8 +535,10 @@
                              (lambda (exc)
                                (connection-closing? connection))
                              (lambda (exc)
-                               (if (presence-find-connection presence remote-uuid)
-                                   (close-connection presence remote-uuid connection))
+                               (let ((presence (connection-presence connection))
+                                     (remote-uuid (connection-remote-uuid connection)))
+                                 (if (presence-find-connection presence remote-uuid)
+                                     (presence-close-connection presence remote-uuid connection)))
                                (continuation-return exit #f))
                              (lambda ()
                                (let ((processing-handler (connection-processing-handler connection)))
@@ -554,10 +561,11 @@
 
 
 (define (connection-invoke connection kind method-name remote-proxy arguments)
-  (if (and (or debug-remote? (and debug-remote-blocking? (neq? kind 'post))) (debug-presence? presence) (debug-remote-method? method-name))
-      (begin
-        (debug-remote presence '>>> remote-title remote-uuid kind method-name)
-        (caller-garble-hack)))
+  (let ((presence (connection-presence connection)))
+    (if (and (or debug-remote? (and debug-remote-blocking? (not (eq? kind 'post)))) (debug-presence? presence) (debug-remote-method? method-name))
+        (begin
+          (debug-remote presence '>>> (connection-remote-title connection) (connection-remote-uuid connection) kind method-name)
+          (caller-garble-hack))))
   (let ((ior (remote-proxy-ior remote-proxy)))
     ((connection-invoke-handler connection)
       (lambda (connection)
@@ -593,12 +601,13 @@
 
 (define (connection-result connection rest)
   (bind (kind method-name cookie result) rest
-    (if (and debug-remote? (debug-presence? presence) (debug-remote-method? method-name))
-        (begin
-          (if (eq? kind 'call)
-              (debug-remote presence '<<< remote-title remote-uuid 'result method-name (debug-simplify presence result))
-            (debug-remote presence '<<< remote-title remote-uuid 'return method-name))
-          (caller-garble-hack)))
+    (let ((presence (connection-presence connection)))
+      (if (and debug-remote? (debug-presence? presence) (debug-remote-method? method-name))
+          (begin
+            (if (eq? kind 'call)
+                (debug-remote presence '<<< (connection-remote-title connection) (connection-remote-uuid connection) 'result method-name (debug-simplify presence result))
+              (debug-remote presence '<<< (connection-remote-title connection) (connection-remote-uuid connection) 'return method-name))
+            (caller-garble-hack))))
     (let ((mutex (serial->object cookie)))
       (mutex-specific-set! mutex result)
       (mutex-unlock! mutex))))
@@ -611,10 +620,11 @@
 
 (define (connection-execute connection kind rest)
   (bind (method-name cookie local-proxy arguments) rest
-    (if (and debug-remote? (debug-presence? presence) (debug-remote-method? method-name))
-        (begin
-          (callee-garble-hack)
-          (debug-remote presence '<<< remote-title remote-uuid 'execute method-name)))
+    (let ((presence (connection-presence connection)))
+      (if (and debug-remote? (debug-presence? presence) (debug-remote-method? method-name))
+          (begin
+            (callee-garble-hack)
+            (debug-remote presence '<<< (connection-remote-title connection) (connection-remote-uuid connection) 'execute method-name))))
     (let ((thread
             (make-thread
               (lambda ()
@@ -648,7 +658,7 @@
           (mutex-lock! write-mutex)
           (if (and debug-remote-io? (debug-presence? presence))
               (begin
-                (debug-remote presence '>>> remote-title remote-uuid 'write (car message) (cadr message) (caddr message))
+                (debug-remote presence '>>> (connection-remote-title connection) (connection-remote-uuid connection) 'write (car message) (cadr message) (caddr message))
                 (caller-garble-hack)))
           (write-port port (presence-code presence) (presence-version presence) message)))
       (lambda ()
@@ -662,7 +672,7 @@
       (if (and debug-remote-io? (debug-presence? presence))
           (begin
             (callee-garble-hack)
-            (debug-remote presence '<<< remote-title remote-uuid 'read (car message) (cadr message) (caddr message))))
+            (debug-remote presence '<<< (connection-remote-title connection) (connection-remote-uuid connection) 'read (car message) (cadr message) (caddr message))))
       (if (eof-object? message)
           (throw-connection-broke "Read message received eof")
         message))))
@@ -884,7 +894,7 @@
       ;; robust
       (if connection
           (begin
-            (set-closing? connection #t)
+            (connection-closing?-set! connection #t)
             (disconnect-connection presence uuid connection))))))
 
 
@@ -892,7 +902,7 @@
   (let ((presence (proxy-presence remote-proxy))
         (uuid (ior-uuid (remote-proxy-ior remote-proxy))))
     (let ((connection (presence-require-connection presence uuid)))
-      (set-closing? connection #t)
+      (connection-closing?-set! connection #t)
       (close-connection presence uuid connection))))
 
 
@@ -900,7 +910,7 @@
   (let ((presence (proxy-presence remote-proxy))
         (uuid (ior-uuid (remote-proxy-ior remote-proxy))))
     (let ((connection (presence-require-connection presence uuid)))
-      (set-closing? connection #t))))
+      (connection-closing?-set! connection #t))))
 
 
 ;; quick safe version
@@ -909,7 +919,7 @@
         (uuid (ior-uuid (remote-proxy-ior remote-proxy))))
     (let ((connection (presence-find-connection presence uuid)))
       (if connection
-          (set-closing? connection #t)))))
+          (connection-closing?-set! connection #t)))))
 
 
 ;; quick safe version
@@ -917,7 +927,7 @@
   (let ((presence (require-presence purpose)))
     (let ((connection (presence-find-connection presence uuid)))
       (if connection
-          (set-closing? connection #t)))))
+          (connection-closing?-set! connection #t)))))
 
 
 ;;;
@@ -1060,9 +1070,7 @@
               (presence-uuid presence)
               (proxy-stub proxy)
               (local-proxy->reference)
-              '()
-              #;
-              (proxy-values proxy))))
+              (local-proxy-values proxy))))
       (serialize-object (object-class ior) (encode-ior ior)))))
 
 
@@ -1150,12 +1158,12 @@
 
 (define (debug-presence? presence)
   (or (not debug-remote-ignore-presences)
-      (not (memq? (presence-purpose presence) debug-remote-ignore-presences))))
+      (not (memq (presence-purpose presence) debug-remote-ignore-presences))))
 
 
 (define (debug-remote-method? method-name)
   (or (not debug-remote-ignore-methods)
-      (not (memq? method-name debug-remote-ignore-methods))))
+      (not (memq method-name debug-remote-ignore-methods))))
 
 
 (define (set-debug-remote? flag)

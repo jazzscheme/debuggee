@@ -1,39 +1,38 @@
-(include "syntax.scm")
-(include "exception.scm")
-(include "jazz.scm")
-(include "math.scm")
-(include "uuid.scm")
-(include "object.scm")
-(include "version.scm")
-(include "settings.scm")
-(include "network.scm")
-(include "ior.scm")
-(include "proxy.scm")
-(include "register.scm")
-(include "transmission.scm")
-(include "presence.scm")
-(include "remotable.scm")
-(include "stubs.scm")
+#! gsi-script
 
-(exit)
+(load "header")
+(include "all.scm")
 
-(pp *presence-code*)
-(pp *presence-version*)
+(start-presence purpose: 'debugging)
 
-(pp (make-uuid))
+(setup-local-process)
 
-(pp (new-ior #f (make-uuid) 'interface #f '()))
+(setup-debuggee)
+(ready-debuggee)
 
-(define local
-  (new-local-proxy #f #f))
+(current-process-title-set! "Welcome to Scheme!")
 
-(define remote
-  (new-remote-proxy #f #f #f))
+(define (yo)
+  14243523452)
 
-(pp (list 'local local (proxy-live? local)))
-(pp (list 'remote remote (proxy-live? remote)))
+(define (foo x)
+  (let ((z (+ x x)))
+    (thread-sleep! +inf.0)
+    (break)
+    z))
 
-(define p
-  (new-presence #f))
+(define (goo y)
+  (foo (* y 2))
+  3)
 
-(pp p)
+(define (hoo z)
+  (goo (+ z 3))
+  5)
+
+(thread-start!
+  (make-thread
+    (lambda ()
+      (hoo 7))
+    'zoo))
+
+(start-repl)

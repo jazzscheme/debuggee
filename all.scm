@@ -1,9 +1,11 @@
+(include "kernel.scm")
+(include "core.scm")
 (include "syntax.scm")
 (include "exception.scm")
+(include "object.scm")
 (include "jazz.scm")
 (include "math.scm")
 (include "uuid.scm")
-(include "object.scm")
 (include "version.scm")
 (include "settings.scm")
 (include "network.scm")
@@ -16,15 +18,10 @@
 (include "remotable.scm")
 (include "stubs.scm")
 (include "debuggee.scm")
-
-(set! ##primordial-exception-handler-hook
-  (lambda (exc other)
-    (if (connection-broke-exception? exc)
-        (exit)
-      (##repl-exception-handler-hook exc other))))
-
-(start-presence purpose: 'debugging)
-
-(setup-local-process)
-
-(thread-sleep! +inf.0)
+(include "process.scm")
+(include "thread.scm")
+(include "restart.scm")
+(include "stop.scm")
+(include "frame.scm")
+(include "evaluate.scm")
+(include "inspector.scm")

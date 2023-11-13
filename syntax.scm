@@ -35,6 +35,12 @@
 ;;;  See www.jazzscheme.org for details.
 
 
+(define-macro (when test . body)
+  `(if ,test
+       (begin
+         ,@body)))
+
+
 (##define-syntax bind
   (lambda (src)
     (define (generate-symbol #!optional (prefix "sym"))
