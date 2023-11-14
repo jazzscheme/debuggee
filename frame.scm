@@ -75,7 +75,7 @@
 
 (define (debuggee-frame-get-interpreted? debuggee-frame)
   (let ((cont (serial->object (debuggee-frame-continuation debuggee-frame))))
-    (interpreted-continuation? cont)))
+    (boolean (interpreted-continuation? cont))))
 
 
 (define (debuggee-frame-get-hidden? debuggee-frame)

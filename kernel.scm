@@ -70,6 +70,15 @@
 
 
 ;;;
+;;;; Values
+;;;
+
+
+(define (values? obj)
+  (##values? obj))
+
+
+;;;
 ;;;; Closure
 ;;;
 

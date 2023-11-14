@@ -62,12 +62,12 @@
 ;;;
 
 
-(define (invalid-code? obj)
-  #f)
-
-
 (define Invalid-Code
   'Invalid-Code)
+
+
+(define (invalid-code? obj)
+  (eq? obj Invalid-Code))
 
 
 (define (throw-invalid-code)
@@ -79,12 +79,12 @@
 ;;;
 
 
-(define (invalid-version? obj)
-  #f)
-
-
 (define Invalid-Version
   'Invalid-Version)
+
+
+(define (invalid-version? obj)
+  (eq? obj Invalid-Version))
 
 
 (define (throw-invalid-version)
@@ -127,6 +127,8 @@
 
 
 (define (write-header code version port)
+  (write-text-header code version port)
+  #;
   (32-bit-integer->bytes code
     (lambda (b1 b2 b3 b4)
       (version->bytes version
@@ -143,6 +145,8 @@
 
 
 (define (read-header port)
+  (read-text-header port)
+  #;
   (let* ((b1 (read-u8 port))
          (b2 (read-u8 port))
          (b3 (read-u8 port))
@@ -159,14 +163,79 @@
 
 
 (define (write-data data port)
+  (write-text data port)
+  #;
   (write-binary data port))
 
 
 (define (read-data port)
-  (let ((data (read-binary port)))
+  (let ((data (read-text port)
+              #; (read-binary port)))
     (if (eof-object? data)
         (throw-connection-broke "Read data received eof")
       data)))
+
+
+;;;
+;;;; Text
+;;;
+
+
+(define (write-text-header code version port)
+  (32-bit-integer->bytes code
+    (lambda (b1 b2 b3 b4)
+      (version->bytes version
+        (lambda (b5 b6 b7 b8)
+          (write (list b1 b2 b3 b4 b5 b6 b7 b8) port)
+          (force-output port))))))
+
+
+(define (read-text-header port)
+  (let ((data (read port)))
+    (if (eof-object? data)
+        (throw-connection-broke "Read header received eof")
+      (bind (b1 b2 b3 b4 b5 b6 b7 b8) data
+        (let ((code (bytes->32-bit-integer b1 b2 b3 b4))
+              (version (bytes->version b5 b6 b7 b8)))
+          (values code version))))))
+
+
+(define (write-text data port)
+  (define (encode obj)
+    (cond ((null? obj)
+           obj)
+          ((pair? obj)
+           (cons (encode (car obj))
+                 (encode (cdr obj))))
+          (else
+           (let ((expr (serialize obj)))
+             (if (serialized? expr)
+                 (vector 'serialized
+                         (serialized-class expr)
+                         (serialized-content expr))
+               expr)))))
+  
+  (write (encode data) port)
+  (force-output port))
+
+
+(define (read-text port)
+  (define (decode obj)
+    (cond ((null? obj)
+           obj)
+          ((pair? obj)
+           (cons (decode (car obj))
+                 (decode (cdr obj))))
+          ((and (vector? obj)
+                (> (vector-length obj) 0)
+                (eq? (vector-ref obj 0) 'serialized))
+           (deserialize
+             (make-serialized (vector-ref obj 1)
+                              (vector-ref obj 2))))
+          (else
+           obj)))
+  
+  (decode (read port)))
 
 
 ;;;

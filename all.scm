@@ -1,7 +1,19 @@
+(##supply-module all)
+
+(declare
+  (standard-bindings)
+  (extended-bindings))
+
+(##namespace ("all#"))
+(##include "~~lib/gambit#.scm")
+
+(include "header.scm")
 (include "kernel.scm")
 (include "core.scm")
 (include "syntax.scm")
 (include "exception.scm")
+(include "class.scm")
+(include "sequence.scm")
 (include "object.scm")
 (include "jazz.scm")
 (include "math.scm")

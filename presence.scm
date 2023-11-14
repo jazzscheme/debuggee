@@ -258,10 +258,10 @@
                 ;; right invalid code/version error
                 (catch (invalid-code? exc
                          (write-port port code version #f)
-                         (signal exc))
+                         (raise exc))
                   (catch (invalid-version? exc
                            (write-port port code version #f)
-                           (signal exc))
+                           (raise exc))
                     (read-port port code version)))))
           (bind (remote-kind remote-uuid remote-title remote-service remote-address reference) message
             (define (accept)
@@ -271,7 +271,7 @@
                     (local-address (socket-info-address (tcp-client-peer-socket-info port)))
                     (reference-proxy (and reference (load-reference (presence-register presence) reference))))
                 (write-port port code version (list local-uuid local-title local-service local-address reference-proxy))
-                (if (not (eq? (read-port port code version) 'handshake))
+                (if (not (equal? (read-port port code version) '(handshake)))
                     (error "Fatal")
                   (let ((invoke-handler (presence-invoke-handler presence))
                         (process-handler (presence-process-handler presence))
@@ -326,7 +326,7 @@
                      (error "Already connected to" host service))
                     (else
                      (bind (remote-uuid remote-title remote-service remote-address reference-proxy) reply
-                       (write-port port code version 'handshake)
+                       (write-port port code version '(handshake))
                        (let ((invoke-handler (presence-invoke-handler presence))
                              (process-handler (presence-process-handler presence))
                              (processing-handler (presence-processing-handler presence))
@@ -581,7 +581,7 @@
               (connection-unregister-invocation connection mutex)
               (let ((result (mutex-specific mutex)))
                 (if (connection-broke-exception? result)
-                    (signal result)
+                    (raise result)
                   result))))))
       connection)))
 

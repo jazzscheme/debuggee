@@ -150,6 +150,21 @@
 
 
 ;;;
+;;;; Sequence
+;;;
+
+
+(define (coerce-list seq)
+  (if (null/pair? seq)
+      seq
+    (let ((len (sequence-length seq)))
+      (let loop ((n (- len 1)) (lst '()))
+           (if (< n 0)
+               lst
+             (loop (- n 1) (cons (sequence-ref seq n) lst)))))))
+
+
+;;;
 ;;;; String
 ;;;
 
@@ -169,6 +184,16 @@
 (define (upcase str)
   str)
 
+
+(define (->string expr)
+  (cond ((string? expr)
+         expr)
+        ((symbol? expr)
+         (symbol->string expr))
+        (else
+         (let ((output (open-output-string)))
+           (display expr output)
+           (get-output-string output)))))
 
 ;;;
 ;;;; Table
@@ -682,6 +707,8 @@
   (let ((u8vect (if encoder
                     (object->u8vector data encoder)
                   (object->u8vector data))))
+    (write u8vect)
+    (newline)
     (let ((size (u8vector-length u8vect)))
       (write-32-bit-integer size port)
       (write-subu8vector u8vect 0 size port)

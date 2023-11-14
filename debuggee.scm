@@ -121,14 +121,14 @@
         (if (not port)
             (error "Ill-formed debugger argument: {a}" debugger-arg)
           (call-with-catch connection-exception?
-             (lambda (exc)
-               (if (not connection-exception-exit?)
-                   exc
-                 (begin
-                   (system-message "Unable to connect to debugger"
-                                   title: "Application"
-                                   type: 'problem)
-                   (exit 1))))
+            (lambda (exc)
+              (if (not connection-exception-exit?)
+                  exc
+                (begin
+                  (system-message "Unable to connect to debugger"
+                                  title: "Application"
+                                  type: 'problem)
+                  (exit 1))))
             (lambda ()
               (attach-debuggee host port focus?: #t)
               #f)))))))
@@ -491,8 +491,6 @@
 
 
 (define (inspect object #!key (kind ':value))
-  ;; to debug
-  (set-exception-debugger system-exception-debugger)
   (let ((info (package-info object kind: kind)))
     (debugger-proxy-inspect-object controller-debugger local-process info)))
 
