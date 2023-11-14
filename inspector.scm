@@ -57,10 +57,10 @@
     (define (more-value? value)
       (cond ((pair? value) #t)
             ((table? value) (> (table-length value) 0))
+            ((structure? value) (> (kind-length (structure-kind value)) 0))
             ((string? value) #f)
             ;; todo ((sequence? value) (> (cardinality value) 0))
-            ;; todo ((closure? value) #t)
-            ;; todo ((object? value) (not-null? (get-instance-slots (class-of value))))
+            ((closure? value) #t)
             (else #f)))
     
     (define (truncate str)
@@ -80,3 +80,90 @@
                           ((memq kind '(frame: context:)) #t)
                           (else (more-value? value)))))
         (list serial class presentation more? mutable? kind)))))
+
+
+;;;
+;;;; Inspect
+;;;
+
+
+(define inspect-max-width
+  256)
+
+(define inspect-max-content
+  256)
+
+
+(define (inspect-value value #!key (max-width #f) (max-content inspect-max-content) (packager package-info))
+  (let ((max-width (or max-width inspect-max-width)))
+    (define (inspect-structure struct)
+      (let ((kind (structure-kind struct)))
+        (map (lambda (info)
+               (bind (name rank) info
+                 (cons (list #f name rank) (packager (structure-ref struct rank kind)))))
+             (cached-kind-fields kind))))
+    
+    (define (inspect-list lst)
+      (define (proper-length l n)
+        (cond ((null? l) n)
+              ((pair? l) (proper-length (cdr l) (+ n 1)))
+              (else (+ n 1))))
+      
+      (let ((total (proper-length lst 0))
+            (content (let iter ((scan lst)
+                                (rank 0))
+                       (cond ((or (null? scan) (and max-content (>= rank max-content)))
+                              '())
+                             ((pair? scan)
+                              (cons (cons (list #f rank rank) (packager (car scan)))
+                                    (iter (cdr scan) (+ rank 1))))
+                             (else
+                              (list (cons (list #f 'rest rank) (packager scan))))))))
+        (add-missing total content)))
+    
+    (define (inspect-sequence seq)
+      (inspect-list (coerce seq List)))
+    
+    (define (inspect-table table)
+      (let ((total (table-length table))
+            (content (let iter ((scan (table->list table))
+                                (rank 0))
+                       (if (or (null? scan) (and max-content (>= rank max-content)))
+                           '()
+                         (bind (key . value) (car scan)
+                           (cons (cons (list #f (safe-present-object key max-width) rank) (packager value))
+                                 (iter (cdr scan) (+ rank 1))))))))
+        (let ((sorted (sort di<? content key: (lambda (info) (second (car info))))))
+          (add-missing total sorted))))
+    
+    (define (inspect-closure value)
+      (inspect-list (closure-environment value)))
+    
+    (define (add-missing total content)
+      (let ((missing (- total (length content))))
+        (if (> missing 0)
+            (cons (cons (list #f #f -1) (packager (format "{a} missing of {a}" missing total) kind: :raw)) content)
+          content)))
+    
+    (cond ((null/pair? value) (inspect-list value))
+          ((table? value) (inspect-table value))
+          ((structure? value) (inspect-structure value))
+          ;((sequence? value) (inspect-sequence value))
+          ((closure? value) (inspect-closure value))
+          (else '()))))
+
+
+;;;
+;;;; Kind
+;;;
+
+
+(define kind-cache
+  (make-table test: eq?))
+
+
+(define (cached-kind-fields kind)
+  (or (table-ref kind-cache kind #f)
+      (let ((fields (kind-fields kind)))
+        (table-set! kind-cache kind fields)
+        fields)))

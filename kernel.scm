@@ -70,6 +70,22 @@
 
 
 ;;;
+;;;; Closure
+;;;
+
+
+(define (closure-environment closure)
+  ;; to do interpreted
+  (if (##interp-procedure? closure)
+      '()
+    (let ((len (##closure-length closure)))
+      (let iter ((n 1) (env '()))
+           (if (fx>= n len)
+               env
+             (iter (fx+ n 1) (cons (##closure-ref closure n) env)))))))
+
+
+;;;
 ;;;; Stack
 ;;;
 

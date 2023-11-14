@@ -122,6 +122,60 @@
 
 
 ;;;
+;;;; Structure
+;;;
+
+
+(define (kind? obj)
+  (##type? obj))
+
+(define (kind-id type)
+  (##type-id type))
+
+(define (kind-name type)
+  (##type-name type))
+
+(define (kind-flags type)
+  (##type-flags type))
+
+(define (kind-super type)
+  (##type-super type))
+
+(define (kind-length type)
+  (##type-field-count type))
+
+(define (kind-fields type)
+  (let loop ((index 1)
+             (fields (##type-all-fields type))
+             (alist '()))
+       (if (pair? fields)
+           (let* ((name (car fields))
+                  (rest (cdr fields))
+                  (options (car rest))
+                  (rest (cdr rest))
+                  (val (car rest))
+                  (rest (cdr rest)))
+             (loop (fx+ index 1)
+                   rest
+                   (cons (list name index options val)
+                         alist)))
+         (reverse alist))))
+
+
+(define (structure? obj)
+  (##structure? obj))
+
+(define (structure-kind obj)
+  (##structure-type obj))
+
+(define (structure-ref obj i type)
+  (##structure-ref obj i type #f))
+
+(define (structure-set! obj val i type)
+  (##structure-set! obj val i type #f))
+
+
+;;;
 ;;;; Readtable
 ;;;
 
@@ -223,6 +277,11 @@
 
 (define (procedure-name procedure)
   (##procedure-name procedure))
+
+
+(define (closure? obj)
+  (and (##procedure? obj)
+       (##closure? obj)))
 
 
 (define (get-continuation-location cont)

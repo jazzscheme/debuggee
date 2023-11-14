@@ -486,6 +486,18 @@
 
 
 ;;;
+;;;; Inspect
+;;;
+
+
+(define (inspect object #!key (kind ':value))
+  ;; to debug
+  (set-exception-debugger system-exception-debugger)
+  (let ((info (package-info object kind: kind)))
+    (debugger-proxy-inspect-object controller-debugger local-process info)))
+
+
+;;;
 ;;;; Repl
 ;;;
 

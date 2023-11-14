@@ -50,6 +50,10 @@
       (number? value)))
 
 
+(define (null/pair? obj)
+  (or (null? obj) (pair? obj)))
+
+
 ;;;
 ;;;; Boolean
 ;;;
