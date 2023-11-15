@@ -4,6 +4,7 @@ start-presence
 
 setup-local-process
 
+attach-debuggee
 setup-debuggee
 ready-debuggee
 

@@ -135,7 +135,6 @@
 
 
 (define (attach-debuggee host port #!key (focus? #f))
-  ;; wiqq (load-debuggee-units)
   (attach-debuggee-to-controller (connect-remote-reference (or host localhost) port 'debugger purpose: 'debugging) focus?: focus?))
 
 
