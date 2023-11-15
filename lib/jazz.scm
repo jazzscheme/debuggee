@@ -104,7 +104,7 @@
 ;;;
 
 
-(define (remove item lst)
+(define (removebaaa item lst)
   (let iter ((scan lst))
     (if (not (null? scan))
         (let ((value (car scan)))
@@ -261,11 +261,11 @@
 
 ;; copied from _repl
 (define (write-timeout to moment port)
-  (write-string " " port)
+  (##write-string " " port)
   (let* ((expiry (fl- to moment))
          (e (fl/ (flround (fl* 10.0 expiry)) 10.0)))
     (write (if (integer? e) (inexact->exact e) e) port))
-  (write-string "s" port))
+  (##write-string "s" port))
 
 
 ;;;
@@ -477,7 +477,7 @@
                     (write wf port)
                     (if (mutex? wf)
                         (begin
-                          (write-string " " port)
+                          (##write-string " " port)
                           (write (mutex-state wf) port)))
                     (if to
                         (write-timeout (systime->seconds to) moment port)))
@@ -791,15 +791,6 @@
                          (char->integer (string-ref s 1))
                          (char->integer (string-ref s 2))
                          (char->integer (string-ref s 3))))
-
-
-;;;
-;;;; Port
-;;;
-
-
-(define (write-string str port)
-  (##write-string str port))
 
 
 ;;;

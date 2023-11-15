@@ -202,7 +202,7 @@
 (define (stop-unregister stop-info)
   (with-stops-mutex
     (lambda ()
-      (set! *stops* (remove stop-info *stops*)))))
+      (set! *stops* (removebaaa stop-info *stops*)))))
 
 
 (define (thread-active-stops thread)

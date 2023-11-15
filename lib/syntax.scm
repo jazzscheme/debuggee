@@ -35,6 +35,10 @@
 ;;;  See www.jazzscheme.org for details.
 
 
+(define-macro (library . rest)
+  `(begin))
+
+
 (define-macro (when test . body)
   `(if ,test
        (begin

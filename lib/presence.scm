@@ -506,7 +506,7 @@
 (define (connection-unregister-invocation connection mutex)
   (let ((invocations-mutex (connection-invocations-mutex connection)))
     (mutex-lock! invocations-mutex)
-    (connection-invocations-set! connection (remove mutex (connection-invocations connection)))
+    (connection-invocations-set! connection (removebaaa mutex (connection-invocations connection)))
     (mutex-unlock! invocations-mutex)))
 
 
