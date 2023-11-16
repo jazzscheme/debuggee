@@ -271,20 +271,18 @@
                     (local-address (socket-info-address (tcp-client-peer-socket-info port)))
                     (reference-proxy (and reference (load-reference (presence-register presence) reference))))
                 (write-port port code version (list local-uuid local-title local-service local-address reference-proxy))
-                (if (not (equal? (read-port port code version) '(handshake)))
-                    (error "Fatal")
-                  (let ((invoke-handler (presence-invoke-handler presence))
-                        (process-handler (presence-process-handler presence))
-                        (processing-handler (presence-processing-handler presence))
-                        (execute-handler (presence-execute-handler presence)))
-                    (let ((connection (new-connection presence port remote-uuid remote-title remote-service remote-address invoke-handler process-handler processing-handler execute-handler)))
-                      (if (and debug-remote? (debug-presence? presence))
-                          (begin
-                            (callee-garble-hack)
-                            (debug-remote presence '<<< remote-title remote-uuid 'accept connection)))
-                      (presence-register-connection presence remote-uuid connection)
-                      (connection-thread-set! connection (current-thread))
-                      (connection-process connection))))))
+                (let ((invoke-handler (presence-invoke-handler presence))
+                      (process-handler (presence-process-handler presence))
+                      (processing-handler (presence-processing-handler presence))
+                      (execute-handler (presence-execute-handler presence)))
+                  (let ((connection (new-connection presence port remote-uuid remote-title remote-service remote-address invoke-handler process-handler processing-handler execute-handler)))
+                    (if (and debug-remote? (debug-presence? presence))
+                        (begin
+                          (callee-garble-hack)
+                          (debug-remote presence '<<< remote-title remote-uuid 'accept connection)))
+                    (presence-register-connection presence remote-uuid connection)
+                    (connection-thread-set! connection (current-thread))
+                    (connection-process connection)))))
             
             (let ((existing-connection (presence-find-connection presence remote-uuid)))
               (if existing-connection
@@ -326,7 +324,6 @@
                      (error "Already connected to" host service))
                     (else
                      (bind (remote-uuid remote-title remote-service remote-address reference-proxy) reply
-                       (write-port port code version '(handshake))
                        (let ((invoke-handler (presence-invoke-handler presence))
                              (process-handler (presence-process-handler presence))
                              (processing-handler (presence-processing-handler presence))
