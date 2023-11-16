@@ -277,7 +277,7 @@
                         (process-handler (presence-process-handler presence))
                         (processing-handler (presence-processing-handler presence))
                         (execute-handler (presence-execute-handler presence)))
-                    (let ((connection (new-connection presence port remote-uuid remote-title remote-service remote-address #f invoke-handler process-handler processing-handler execute-handler)))
+                    (let ((connection (new-connection presence port remote-uuid remote-title remote-service remote-address invoke-handler process-handler processing-handler execute-handler)))
                       (if (and debug-remote? (debug-presence? presence))
                           (begin
                             (callee-garble-hack)
@@ -331,7 +331,7 @@
                              (process-handler (presence-process-handler presence))
                              (processing-handler (presence-processing-handler presence))
                              (execute-handler (presence-execute-handler presence)))
-                         (let ((connection (new-connection presence port remote-uuid remote-title remote-service remote-address #f invoke-handler process-handler processing-handler execute-handler)))
+                         (let ((connection (new-connection presence port remote-uuid remote-title remote-service remote-address invoke-handler process-handler processing-handler execute-handler)))
                            (if (and debug-remote? (debug-presence? presence))
                                (begin
                                  (callee-garble-hack)
@@ -439,7 +439,6 @@
   address   ; the peer's address of us
   invocations
   invocations-mutex
-  lag
   closing?
   invoke-handler
   process-handler
@@ -447,7 +446,7 @@
   execute-handler)
 
 
-(define (new-connection presence port remote-uuid remote-title service address lag invoke-handler process-handler processing-handler execute-handler)
+(define (new-connection presence port remote-uuid remote-title service address invoke-handler process-handler processing-handler execute-handler)
   (let ((connection
           (make-connection
             'connection
@@ -462,7 +461,6 @@
             address
             '()
             (make-mutex 'invocations)
-            lag
             #f
             invoke-handler
             process-handler
