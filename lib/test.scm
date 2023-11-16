@@ -6,11 +6,9 @@
 
 (setup-local-process)
 
-(attach-debuggee "localhost" 56000)
+(setup-debuggee)
 (ready-debuggee)
 
 (current-process-title-set! "Welcome to Scheme!")
-
-(import (api))
 
 (start-repl)
