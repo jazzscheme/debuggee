@@ -68,6 +68,10 @@
 ;;     thread continues execution
 
 
+(define supports-binary?
+  #f)
+
+
 ;;;
 ;;;; Presences
 ;;;
@@ -257,25 +261,27 @@
                 ;; that by simply replying, the client will report the
                 ;; right invalid code/version error
                 (catch (invalid-code? exc
-                         (write-port port code version #f)
+                         (write-port port #f code version #f)
                          (raise exc))
                   (catch (invalid-version? exc
-                           (write-port port code version #f)
+                           (write-port port #f code version #f)
                            (raise exc))
-                    (read-port port code version)))))
-          (bind (remote-kind remote-uuid remote-title remote-service remote-address reference) message
+                    (read-port port #f code version)))))
+          (bind (remote-binary? remote-kind remote-uuid remote-title remote-service remote-address reference) message
             (define (accept)
-              (let ((local-uuid uuid)
+              (let ((local-binary? supports-binary?)
+                    (local-uuid uuid)
                     (local-title presence-title)
                     (local-service (listener-listening-port (presence-listener presence)))
                     (local-address (socket-info-address (tcp-client-peer-socket-info port)))
                     (reference-proxy (and reference (load-reference (presence-register presence) reference))))
-                (write-port port code version (list local-uuid local-title local-service local-address reference-proxy))
-                (let ((invoke-handler (presence-invoke-handler presence))
+                (write-port port #f code version (list local-binary? local-uuid local-title local-service local-address reference-proxy))
+                (let ((binary? (and local-binary? remote-binary?))
+                      (invoke-handler (presence-invoke-handler presence))
                       (process-handler (presence-process-handler presence))
                       (processing-handler (presence-processing-handler presence))
                       (execute-handler (presence-execute-handler presence)))
-                  (let ((connection (new-connection presence port remote-uuid remote-title remote-service remote-address invoke-handler process-handler processing-handler execute-handler)))
+                  (let ((connection (new-connection presence port binary? remote-uuid remote-title remote-service remote-address invoke-handler process-handler processing-handler execute-handler)))
                     (if (and debug-remote? (debug-presence? presence))
                         (begin
                           (callee-garble-hack)
@@ -288,7 +294,7 @@
               (if existing-connection
                   (if already-connected
                       (already-connected presence remote-uuid existing-connection accept)
-                    (write-port port code version 'already-connected))
+                    (write-port port #f code version 'already-connected))
                 (accept)))))))
     presence))
 
@@ -312,23 +318,25 @@
     ((presence-connect-handler presence)
       (lambda (presence)
         (let ((port (open-tcp-client (list server-address: host port-number: service))))
-          (let ((local-uuid uuid)
+          (let ((local-binary? supports-binary?)
+                (local-uuid uuid)
                 (local-title presence-title)
                 (local-service (listener-listening-port listener))
                 (local-address (socket-info-address (tcp-client-peer-socket-info port))))
-            (write-port port code version (list 'connect local-uuid local-title local-service local-address reference))
-            (let ((reply (read-port port code version)))
+            (write-port port #f code version (list 'connect local-binary? local-uuid local-title local-service local-address reference))
+            (let ((reply (read-port port #f code version)))
               (cond ((eof-object? reply)
                      (throw-connection-broke (format "Connecting to {a} {a} received eof" host service)))
                     ((eq? reply 'already-connected)
                      (error "Already connected to" host service))
                     (else
-                     (bind (remote-uuid remote-title remote-service remote-address reference-proxy) reply
-                       (let ((invoke-handler (presence-invoke-handler presence))
+                     (bind (remote-binary? remote-uuid remote-title remote-service remote-address reference-proxy) reply
+                       (let ((binary? (and local-binary? remote-binary?))
+                             (invoke-handler (presence-invoke-handler presence))
                              (process-handler (presence-process-handler presence))
                              (processing-handler (presence-processing-handler presence))
                              (execute-handler (presence-execute-handler presence)))
-                         (let ((connection (new-connection presence port remote-uuid remote-title remote-service remote-address invoke-handler process-handler processing-handler execute-handler)))
+                         (let ((connection (new-connection presence port binary? remote-uuid remote-title remote-service remote-address invoke-handler process-handler processing-handler execute-handler)))
                            (if (and debug-remote? (debug-presence? presence))
                                (begin
                                  (callee-garble-hack)
@@ -428,6 +436,7 @@
 (define-type-of-object connection
   presence
   port
+  binary?
   thread
   write-mutex
   remote-uuid
@@ -443,13 +452,14 @@
   execute-handler)
 
 
-(define (new-connection presence port remote-uuid remote-title service address invoke-handler process-handler processing-handler execute-handler)
+(define (new-connection presence port binary? remote-uuid remote-title service address invoke-handler process-handler processing-handler execute-handler)
   (let ((connection
           (make-connection
             'connection
             #f
             presence
             port
+            binary?
             #f
             (make-mutex 'write)
             remote-uuid
@@ -649,21 +659,23 @@
         #f)
       (lambda ()
         (let ((presence (connection-presence connection))
-              (port (connection-port connection)))
+              (port (connection-port connection))
+              (binary? (connection-binary? connection)))
           (mutex-lock! write-mutex)
           (if (and debug-remote-io? (debug-presence? presence))
               (begin
                 (debug-remote presence '>>> (connection-remote-title connection) (connection-remote-uuid connection) 'write (car message) (cadr message) (caddr message))
                 (caller-garble-hack)))
-          (write-port port (presence-code presence) (presence-version presence) message)))
+          (write-port port binary? (presence-code presence) (presence-version presence) message)))
       (lambda ()
         (mutex-unlock! write-mutex)))))
 
 
 (define (connection-read-message connection)
   (let ((presence (connection-presence connection))
-        (port (connection-port connection)))
-    (let ((message (read-port port (presence-code presence) (presence-version presence))))
+        (port (connection-port connection))
+        (binary? (connection-binary? connection)))
+    (let ((message (read-port port binary? (presence-code presence) (presence-version presence))))
       (if (and debug-remote-io? (debug-presence? presence))
           (begin
             (callee-garble-hack)
