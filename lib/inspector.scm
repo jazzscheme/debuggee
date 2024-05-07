@@ -133,7 +133,7 @@
                          (bind (key . value) (car scan)
                            (cons (cons (list #f (safe-present-object key max-width) rank) (packager value))
                                  (iter (cdr scan) (+ rank 1))))))))
-        (let ((sorted (sort di<? content key: (lambda (info) (second (car info))))))
+        (let ((sorted (sort string<? content key: (lambda (info) (cadr (car info))))))
           (add-missing total sorted))))
     
     (define (inspect-closure value)
@@ -167,3 +167,38 @@
       (let ((fields (kind-fields kind)))
         (table-set! kind-cache kind fields)
         fields)))
+
+
+;;;
+;;;; Sort
+;;;
+
+
+(define (sort smaller l #!key (key #f))
+  (define (apply-key key object)
+    (if (not key)
+        object
+      (key object)))
+
+  (define (merge-sort l)
+    (define (merge l1 l2)
+      (cond ((null? l1) l2)
+            ((null? l2) l1)
+            (else
+             (let ((e1 (car l1)) (e2 (car l2)))
+               (if (smaller (apply-key key e1) (apply-key key e2))
+                   (cons e1 (merge (cdr l1) l2))
+                 (cons e2 (merge l1 (cdr l2))))))))
+    
+    (define (split l)
+      (if (or (null? l) (null? (cdr l)))
+          l
+        (cons (car l) (split (cddr l)))))
+    
+    (if (or (null? l) (null? (cdr l)))
+        l
+      (let* ((l1 (merge-sort (split l)))
+             (l2 (merge-sort (split (cdr l)))))
+        (merge l1 l2))))
+  
+  (merge-sort l))
