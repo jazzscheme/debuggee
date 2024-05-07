@@ -44,7 +44,7 @@
     (let ((kind (source-code (car (source-code expr))))
           (expr (cdr (source-code expr))))
       (let ((first (source-code (car expr))))
-        (if (memq? first '(protected public))
+        (if (memq first '(protected public))
             (values kind (source-code (cadr expr)) first)
           (values kind first 'public)))))
   
