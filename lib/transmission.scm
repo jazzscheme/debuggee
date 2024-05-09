@@ -114,15 +114,17 @@
 
 
 (define (write-port port binary? code version info)
-  (write-header code version port)
-  (if binary?
-      (write-data info port)
-    (write-text-data info port))
+  (cond (binary?
+         (write-header code version port)
+         (write-data info port))
+        (else
+         (write-text-header code version port)
+         (write-text-data info port)))
   (force-output port))
 
 
 (define (read-port port binary? expected-code expected-version)
-  (receive (code version) (read-header port)
+  (receive (code version) (if binary? (read-header port) (read-text-header port))
     (validate-code expected-code code)
     (validate-version expected-version version)
     (if binary? (read-data port) (read-text-data port))))
@@ -179,6 +181,25 @@
 ;;;
 ;;;; Text
 ;;;
+
+
+(define (write-text-header code version port)
+  (32-bit-integer->bytes code
+    (lambda (b1 b2 b3 b4)
+      (version->bytes version
+        (lambda (b5 b6 b7 b8)
+          (write (list b1 b2 b3 b4 b5 b6 b7 b8) port)
+          (force-output port))))))
+
+
+(define (read-text-header port)
+  (let ((data (read port)))
+    (if (eof-object? data)
+        (throw-connection-broke "Read header received eof")
+      (bind (b1 b2 b3 b4 b5 b6 b7 b8) data
+        (let ((code (bytes->32-bit-integer b1 b2 b3 b4))
+              (version (bytes->version b5 b6 b7 b8)))
+          (values code version))))))
 
 
 (define (write-text-data data port)
