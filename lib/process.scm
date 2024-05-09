@@ -141,8 +141,9 @@
 
 (define (debuggee-process-get-threads debuggee-process)
   (let ((threads (map (lambda (thread)
-                        (let ((thread-proxy (new-debuggee-thread-local-proxy (require-presence 'debugging) (new-debuggee-thread thread))))
-                          (cons thread-proxy '())))
+                        (let ((thread-proxy (new-debuggee-thread-local-proxy (require-presence 'debugging) (new-debuggee-thread thread)))
+                              (stop-proxies (thread-active-stops thread)))
+                          (cons thread-proxy stop-proxies)))
                       (top-threads))))
     ;; gc protect
     (debuggee-process-threads-set! debuggee-process threads)
