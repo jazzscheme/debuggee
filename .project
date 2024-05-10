@@ -1,0 +1,52 @@
+;;;==============
+;;;  JazzScheme
+;;;==============
+;;;
+;;;; Project
+;;;
+
+
+(data jazz.ide.data.project
+
+
+(import (jazz.project))
+
+
+(form
+  (<Project>             name: debuggee
+    (<Project-Directory>                directory: {Directory :context "lib"}
+      (<Project-File>                   source: {File :context "lib" "class.scm"})
+      (<Project-File>                   source: {File :context "lib" "core.scm"})
+      (<Project-File>                   source: {File :context "lib" "debuggee.scm"})
+      (<Project-File>                   source: {File :context "lib" "debugger.scm"})
+      (<Project-File>                   source: {File :context "lib" "evaluate.scm"})
+      (<Project-File>                   source: {File :context "lib" "exception.scm"})
+      (<Project-File>                   source: {File :context "lib" "exit.scm"})
+      (<Project-File>                   source: {File :context "lib" "frame.scm"})
+      (<Project-File>                   source: {File :context "lib" "header.scm"})
+      (<Project-File>                   source: {File :context "lib" "inspector.scm"})
+      (<Project-File>                   source: {File :context "lib" "ior.scm"})
+      (<Project-File>                   source: {File :context "lib" "jazz.scm"})
+      (<Project-File>                   source: {File :context "lib" "kernel.scm"})
+      (<Project-File>                   source: {File :context "lib" "listener.scm"})
+      (<Project-File>                   source: {File :context "lib" "math.scm"})
+      (<Project-File>                   source: {File :context "lib" "network.scm"})
+      (<Project-File>                   source: {File :context "lib" "object.scm"})
+      (<Project-File>                   source: {File :context "lib" "presence.scm"})
+      (<Project-File>                   source: {File :context "lib" "process.scm"})
+      (<Project-File>                   source: {File :context "lib" "proxy.scm"})
+      (<Project-File>                   source: {File :context "lib" "register.scm"})
+      (<Project-File>                   source: {File :context "lib" "remotable.scm"})
+      (<Project-File>                   source: {File :context "lib" "restart.scm"})
+      (<Project-File>                   source: {File :context "lib" "sequence.scm"})
+      (<Project-File>                   source: {File :context "lib" "settings.scm"})
+      (<Project-File>                   source: {File :context "lib" "stop.scm"})
+      (<Project-File>                   source: {File :context "lib" "stubs.scm"})
+      (<Project-File>                   source: {File :context "lib" "syntax.scm"})
+      (<Project-File>                   source: {File :context "lib" "test.scm"})
+      (<Project-File>                   source: {File :context "lib" "thread.scm"})
+      (<Project-File>                   source: {File :context "lib" "transmission.scm"})
+      (<Project-File>                   source: {File :context "lib" "uuid.scm"})
+      (<Project-File>                   source: {File :context "lib" "version.scm"}))
+    (<Project-File>                     source: {File :context "all#.scm"})
+    (<Project-File>                     source: {File :context "all.scm"}))))
