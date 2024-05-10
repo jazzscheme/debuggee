@@ -177,10 +177,8 @@
 
 
 (define (debuggee-process-repl-thread debuggee-process thread-proxy)
-  (let ((thread (debuggee-thread-thread (local-proxy-object thread-proxy))))
-    (thread-int! thread
-      (lambda ()
-        (jazz.platform:terminal-repl)))))
+  ;; unimplemented
+  )
 
 
 (define (debuggee-process-terminate-thread debuggee-process thread-proxy preserve-console?)
