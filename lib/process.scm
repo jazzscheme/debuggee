@@ -178,6 +178,7 @@
 
 (define (debuggee-process-repl-thread debuggee-process thread-proxy)
   ;; unimplemented
+  #t
   )
 
 
