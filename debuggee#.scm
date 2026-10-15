@@ -1,4 +1,4 @@
-(##namespace ("all#"
+(##namespace ("debuggee#"
 
 start-presence
 

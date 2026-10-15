@@ -1,10 +1,10 @@
-(##supply-module all)
+(##supply-module debuggee)
 
 (declare
   (standard-bindings)
   (extended-bindings))
 
-(##namespace ("all#"))
+(##namespace ("debuggee#"))
 (##include "~~lib/gambit#.scm")
 
 (include "lib/header.scm")
