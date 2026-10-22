@@ -28,14 +28,75 @@
       (display-prompt (current-console-port) (current-repl-level))
       (force-output (current-console-port))))
   
-  (define (sibling-sld-file container)
+  (define (string-suffix? suffix str)
+    (let ((slen (string-length suffix))
+          (len  (string-length str)))
+      (and (>= len slen)
+           (string=? (substring str (- len slen) len) suffix))))
+
+  (define (includes-file? sld-path target-filename)
+    ;; Checks if sld-path contains (include ... target-filename ...)
+    ;; or (include "target-filename") inside begin/body forms.
+    (with-exception-catcher
+      (lambda (exc)
+        #f)
+      (lambda ()
+        (call-with-input-file sld-path
+          (lambda (port)
+            (let check ((expr (read port)))
+              (cond
+                ((eof-object? expr)
+                 #f)
+                ((and (pair? expr)
+                      (eq? (car expr) 'define-library)
+                      (pair? (cdr expr)))
+                 (let scan-tree ((tree (cddr expr)))
+                   (cond
+                     ((null? tree)
+                      (check (read port)))
+                     ((pair? tree)
+                      (let ((item (car tree)))
+                        (cond
+                          ((and (pair? item)
+                                (memq (car item) '(include include-ci)))
+                           (if (member target-filename (cdr item))
+                               #t
+                             (scan-tree (cdr tree))))
+                          ((pair? item)
+                           (or (scan-tree item)
+                               (scan-tree (cdr tree))))
+                          (else
+                           (scan-tree (cdr tree))))))
+                     (else
+                      (check (read port))))))
+                (else
+                 (check (read port))))))))))
+
+  (define (locate-sld-file container)
     (and (string? container)
          (let ((len (string-length container)))
            (and (>= len 4)
                 (string=? (substring container (- len 4) len) ".scm")
-                (let ((sld-path (string-append (substring container 0 (- len 4)) ".sld")))
-                  (and (file-exists? sld-path)
-                       sld-path))))))
+                ;; 1. Check exact sibling: a.scm -> a.sld
+                (let ((exact-sibling (string-append (substring container 0 (- len 4)) ".sld")))
+                  (if (file-exists? exact-sibling)
+                      exact-sibling
+                    ;; 2. Scan all .sld files in the same directory for (include "a.scm")
+                    (let* ((dir (let ((d (##path-directory container)))
+                                  (if (string=? d "") "." d)))
+                           (filename (##path-strip-directory container))
+                           (files (with-exception-catcher
+                                    (lambda (exc) '())
+                                    (lambda () (##directory-files dir)))))
+                      (let loop ((rest files))
+                        (and (pair? rest)
+                             (let ((f (car rest)))
+                               (if (string-suffix? ".sld" f)
+                                   (let ((full-sld (if (string=? dir ".") f (string-append dir "/" f))))
+                                     (if (includes-file? full-sld filename)
+                                         full-sld
+                                       (loop (cdr rest))))
+                                 (loop (cdr rest)))))))))))))
 
   (define (extract-sld-info sld-path)
     (with-exception-catcher
@@ -120,7 +181,7 @@
                   (expand-form expression)
                 (present (eval expression)))))
           (let ((expression (cons 'begin forms))
-                (sld-path (sibling-sld-file container)))
+                (sld-path (locate-sld-file container)))
             (if sld-path
                 (receive (name imports exports) (extract-sld-info sld-path)
                   (if name
