@@ -48,5 +48,5 @@
       (<Project-File>                   source: {File :context "lib" "transmission.scm"})
       (<Project-File>                   source: {File :context "lib" "uuid.scm"})
       (<Project-File>                   source: {File :context "lib" "version.scm"}))
-    (<Project-File>                     source: {File :context "all#.scm"})
-    (<Project-File>                     source: {File :context "all.scm"}))))
+    (<Project-File>                     source: {File :context "debuggee#.scm"})
+    (<Project-File>                     source: {File :context "debuggee.scm"}))))
