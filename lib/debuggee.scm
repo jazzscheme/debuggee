@@ -562,7 +562,7 @@
               (lambda (exc)
                 (thread-post thread 'exception
                   (lambda ()
-                    (throw exc)))
+                    (raise exc)))
                 (continuation-return resume #f))
               (lambda ()
                 (read port)))))))
